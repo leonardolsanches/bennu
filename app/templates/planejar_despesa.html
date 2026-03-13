@@ -1,0 +1,285 @@
+{% extends "base.html" %}
+
+{% block title %}Planejar Nova Despesa - Bennu Finance{% endblock %}
+
+{% block content %}
+<div class="page-container" style="max-width: 1400px; margin: 0 auto; padding: 10px 20px;">
+    <div class="page-header" style="margin-bottom: 10px;">
+        <div style="display: flex; align-items: center; justify-content: space-between;">
+            <div style="display: flex; align-items: center; gap: 8px;">
+                <div class="icon-circle" style="background-color: #6b7280; display: flex; align-items: center; justify-content: center; width: 28px; height: 28px;">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" style="width: 14px; height: 14px;">
+                        <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/>
+                        <line x1="16" y1="2" x2="16" y2="6"/>
+                        <line x1="8" y1="2" x2="8" y2="6"/>
+                        <line x1="3" y1="10" x2="21" y2="10"/>
+                    </svg>
+                </div>
+                <h1 style="font-size: 1.1rem; font-weight: bold; color: #374151; margin: 0;">Planejar Nova Despesa</h1>
+            </div>
+            <button type="button" class="btn-link" style="color: #6b7280; text-decoration: none; border: none; background: none; cursor: pointer; font-size: 0.8rem;" onclick="window.location.href='/planejar'" data-testid="button-voltar">
+                ← Voltar
+            </button>
+        </div>
+    </div>
+
+    <form id="planejar-despesa-form" class="expense-form form-compact">
+        <!-- Seção 1: Dados Iniciais da Despesa -->
+        <section class="form-section">
+            <div class="section-header-left section-header-collapsible" onclick="toggleFormSection(this)" data-section="dados-iniciais">
+                <div style="display: flex; align-items: center; gap: 8px;">
+                    <div class="section-icon-left">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width: 20px; height: 20px;">
+                            <path d="M19 7l-.867 12.142A2 2 0 0 1 16.138 21H7.862a2 2 0 0 1-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 0 0-1-1h-4a1 1 0 0 0-1 1v3M4 7h16"/>
+                        </svg>
+                    </div>
+                    <h2 class="section-title-left">Dados Iniciais da Despesa</h2>
+                </div>
+                <span class="collapse-icon">▼</span>
+            </div>
+            <div class="section-content-collapsible">
+            <div class="form-grid grid-4">
+                <div class="form-field">
+                    <label for="ano_planejamento" class="form-label required">Ano</label>
+                    <select id="ano_planejamento" name="ano" class="form-select" required data-testid="select-ano">
+                    </select>
+                </div>
+                <div class="form-field">
+                    <label for="versao" class="form-label required">Versão</label>
+                    <div class="select-with-add">
+                        <select id="versao" name="versao_publicacao_id" class="form-select" required data-testid="select-versao">
+                            <option value="">Carregando versões...</option>
+                        </select>
+                        <button type="button" class="add-btn" onclick="abrirModalCriarVersao()" title="Criar nova versão" data-testid="button-add-versao">+</button>
+                    </div>
+                </div>
+                <div class="form-field">
+                    <label for="empresa" class="form-label required">Empresa</label>
+                    <div class="select-with-add">
+                        <select id="empresa" name="empresa_id" class="form-select" required data-testid="select-empresa">
+                            <option value="">Selecione...</option>
+                        </select>
+                        <button type="button" class="add-btn" onclick="openAddModal('empresa')" title="Adicionar nova empresa">+</button>
+                    </div>
+                </div>
+                <div class="form-field">
+                    <label for="cliente" class="form-label">Cliente</label>
+                    <div class="select-with-add">
+                        <select id="cliente" name="cliente_id" class="form-select" data-testid="select-cliente">
+                            <option value="">Selecione...</option>
+                        </select>
+                        <button type="button" class="add-btn" onclick="openAddModal('cliente')" title="Adicionar novo cliente">+</button>
+                    </div>
+                </div>
+            </div>
+            <div class="form-grid grid-2" style="margin-top: 4px;">
+                <div class="form-field">
+                    <label for="descricao" class="form-label required">Breve Descrição</label>
+                    <input type="text" id="descricao" name="descricao" class="form-input" placeholder="Ex: Aluguel, Salários, Fornecedores..." required data-testid="input-descricao">
+                </div>
+            </div>
+            </div>
+        </section>
+
+        <!-- Seção 2: Classificação da Despesa -->
+        <section class="form-section">
+            <div class="section-header-left section-header-collapsible" onclick="toggleFormSection(this)" data-section="classificacao">
+                <div style="display: flex; align-items: center; gap: 8px;">
+                    <div class="section-icon-left">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width: 20px; height: 20px;">
+                            <line x1="18" y1="20" x2="18" y2="10"/>
+                            <line x1="12" y1="20" x2="12" y2="4"/>
+                            <line x1="6" y1="20" x2="6" y2="14"/>
+                        </svg>
+                    </div>
+                    <h2 class="section-title-left">Classificação da Despesa</h2>
+                </div>
+                <span class="collapse-icon">▼</span>
+            </div>
+            <div class="section-content-collapsible">
+            <div class="form-grid grid-2">
+                <div class="form-field">
+                    <label for="categoria_gerencial" class="form-label required">Categoria</label>
+                    <div class="select-with-add">
+                        <select id="categoria_gerencial" name="categoria_gerencial_id" class="form-select" required data-testid="select-categoria-gerencial">
+                            <option value="">Selecione...</option>
+                        </select>
+                        <button type="button" class="add-btn" onclick="openAddModal('categoria_gerencial')" title="Adicionar nova categoria">+</button>
+                    </div>
+                </div>
+                <div class="form-field">
+                    <label for="subcategoria_gerencial" class="form-label required">Subcategoria</label>
+                    <div class="select-with-add">
+                        <select id="subcategoria_gerencial" name="subcategoria_gerencial_id" class="form-select" required data-testid="select-subcategoria-gerencial">
+                            <option value="">Selecione...</option>
+                        </select>
+                        <button type="button" class="add-btn" onclick="openAddModal('subcategoria_gerencial')" title="Adicionar nova subcategoria">+</button>
+                    </div>
+                </div>
+            </div>
+            </div>
+        </section>
+
+        <!-- Seção 4: Mensalização (NOVA ESTRUTURA - TABELA NO FINAL) -->
+        <section class="form-section" style="background: linear-gradient(135deg, #fef2f2 0%, #fee2e2 100%); border: 2px solid #ef4444;">
+            <div class="section-header-left section-header-collapsible" onclick="toggleFormSection(this)" data-section="mensalizacao">
+                <div style="display: flex; align-items: center; gap: 8px;">
+                    <div class="section-icon-left" style="background-color: #ef4444;">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" style="width: 20px; height: 20px;">
+                            <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
+                            <line x1="3" y1="9" x2="21" y2="9"/>
+                            <line x1="9" y1="21" x2="9" y2="9"/>
+                        </svg>
+                    </div>
+                    <h2 class="section-title-left">Mensalização - Atribua Valores por Mês</h2>
+                </div>
+                <span class="collapse-icon">▼</span>
+            </div>
+            <div class="section-content-collapsible">
+            <!-- Botões de distribuição rápida -->
+            <div style="display: flex; gap: 12px; margin-top: 16px; flex-wrap: wrap; align-items: center;">
+                <div style="display: flex; gap: 8px; align-items: center;">
+                    <input type="text" id="valor-distribuir" placeholder="000.000,00" 
+                        style="width: 150px; padding: 8px; border: 1px solid #d1d5db; border-radius: 6px; font-size: 14px;" />
+                    <button type="button" class="btn btn-sm" onclick="distribuirValorIgual()" title="Divide o valor preenchido igualmente por 12 meses"
+                        style="background: #ef4444; color: white; padding: 8px 16px; border: none; border-radius: 6px; cursor: pointer; font-size: 13px; white-space: nowrap;">
+                    Distribuir 12 Meses
+                    </button>
+                </div>
+                <button type="button" class="btn btn-sm" onclick="repetirNos12Meses()" title="Repete o valor preenchido em todos os 12 meses"
+                    style="background: #10b981; color: white; padding: 8px 16px; border: none; border-radius: 6px; cursor: pointer; font-size: 13px;">
+                    Repetir nos 12 Meses
+                </button>
+                <button type="button" class="btn btn-sm" onclick="repetirMesesSubsequentes()" title="Repete o valor preenchido nos meses seguintes"
+                    style="background: #8b5cf6; color: white; padding: 8px 16px; border: none; border-radius: 6px; cursor: pointer; font-size: 13px;">
+                    Repetir Meses Subsequentes
+                </button>
+                <button type="button" class="btn btn-sm" onclick="limparTodosMeses()" title="Limpa todos os valores mensais"
+                    style="background: #6b7280; color: white; padding: 8px 16px; border: none; border-radius: 6px; cursor: pointer; font-size: 13px;">
+                    Limpar Tudo
+                </button>
+            </div>
+
+            <div style="overflow-x: auto; margin-top: 20px;">
+                <table class="mensalizacao-table" style="width: 100%; border-collapse: collapse;">
+                    <thead>
+                        <tr style="background: #ef4444; color: white;">
+                            <th style="padding: 12px; text-align: center; font-size: 13px; font-weight: 600; border: 1px solid #dc2626;">Jan</th>
+                            <th style="padding: 12px; text-align: center; font-size: 13px; font-weight: 600; border: 1px solid #dc2626;">Fev</th>
+                            <th style="padding: 12px; text-align: center; font-size: 13px; font-weight: 600; border: 1px solid #dc2626;">Mar</th>
+                            <th style="padding: 12px; text-align: center; font-size: 13px; font-weight: 600; border: 1px solid #dc2626;">Abr</th>
+                            <th style="padding: 12px; text-align: center; font-size: 13px; font-weight: 600; border: 1px solid #dc2626;">Mai</th>
+                            <th style="padding: 12px; text-align: center; font-size: 13px; font-weight: 600; border: 1px solid #dc2626;">Jun</th>
+                            <th style="padding: 12px; text-align: center; font-size: 13px; font-weight: 600; border: 1px solid #dc2626;">Jul</th>
+                            <th style="padding: 12px; text-align: center; font-size: 13px; font-weight: 600; border: 1px solid #dc2626;">Ago</th>
+                            <th style="padding: 12px; text-align: center; font-size: 13px; font-weight: 600; border: 1px solid #dc2626;">Set</th>
+                            <th style="padding: 12px; text-align: center; font-size: 13px; font-weight: 600; border: 1px solid #dc2626;">Out</th>
+                            <th style="padding: 12px; text-align: center; font-size: 13px; font-weight: 600; border: 1px solid #dc2626;">Nov</th>
+                            <th style="padding: 12px; text-align: center; font-size: 13px; font-weight: 600; border: 1px solid #dc2626;">Dez</th>
+                            <th style="padding: 12px; text-align: center; font-size: 13px; font-weight: 700; background: #b91c1c; border: 1px solid #991b1b;">Total</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr style="background: white;">
+                            <td style="padding: 8px; border: 1px solid #e5e7eb;">
+                                <input type="text" class="mes-input" data-mes="1" placeholder="0,00" style="width: 100%; padding: 8px; border: 1px solid #d1d5db; border-radius: 4px; text-align: right; font-size: 14px;" data-testid="input-mes-1">
+                            </td>
+                            <td style="padding: 8px; border: 1px solid #e5e7eb;">
+                                <input type="text" class="mes-input" data-mes="2" placeholder="0,00" style="width: 100%; padding: 8px; border: 1px solid #d1d5db; border-radius: 4px; text-align: right; font-size: 14px;" data-testid="input-mes-2">
+                            </td>
+                            <td style="padding: 8px; border: 1px solid #e5e7eb;">
+                                <input type="text" class="mes-input" data-mes="3" placeholder="0,00" style="width: 100%; padding: 8px; border: 1px solid #d1d5db; border-radius: 4px; text-align: right; font-size: 14px;" data-testid="input-mes-3">
+                            </td>
+                            <td style="padding: 8px; border: 1px solid #e5e7eb;">
+                                <input type="text" class="mes-input" data-mes="4" placeholder="0,00" style="width: 100%; padding: 8px; border: 1px solid #d1d5db; border-radius: 4px; text-align: right; font-size: 14px;" data-testid="input-mes-4">
+                            </td>
+                            <td style="padding: 8px; border: 1px solid #e5e7eb;">
+                                <input type="text" class="mes-input" data-mes="5" placeholder="0,00" style="width: 100%; padding: 8px; border: 1px solid #d1d5db; border-radius: 4px; text-align: right; font-size: 14px;" data-testid="input-mes-5">
+                            </td>
+                            <td style="padding: 8px; border: 1px solid #e5e7eb;">
+                                <input type="text" class="mes-input" data-mes="6" placeholder="0,00" style="width: 100%; padding: 8px; border: 1px solid #d1d5db; border-radius: 4px; text-align: right; font-size: 14px;" data-testid="input-mes-6">
+                            </td>
+                            <td style="padding: 8px; border: 1px solid #e5e7eb;">
+                                <input type="text" class="mes-input" data-mes="7" placeholder="0,00" style="width: 100%; padding: 8px; border: 1px solid #d1d5db; border-radius: 4px; text-align: right; font-size: 14px;" data-testid="input-mes-7">
+                            </td>
+                            <td style="padding: 8px; border: 1px solid #e5e7eb;">
+                                <input type="text" class="mes-input" data-mes="8" placeholder="0,00" style="width: 100%; padding: 8px; border: 1px solid #d1d5db; border-radius: 4px; text-align: right; font-size: 14px;" data-testid="input-mes-8">
+                            </td>
+                            <td style="padding: 8px; border: 1px solid #e5e7eb;">
+                                <input type="text" class="mes-input" data-mes="9" placeholder="0,00" style="width: 100%; padding: 8px; border: 1px solid #d1d5db; border-radius: 4px; text-align: right; font-size: 14px;" data-testid="input-mes-9">
+                            </td>
+                            <td style="padding: 8px; border: 1px solid #e5e7eb;">
+                                <input type="text" class="mes-input" data-mes="10" placeholder="0,00" style="width: 100%; padding: 8px; border: 1px solid #d1d5db; border-radius: 4px; text-align: right; font-size: 14px;" data-testid="input-mes-10">
+                            </td>
+                            <td style="padding: 8px; border: 1px solid #e5e7eb;">
+                                <input type="text" class="mes-input" data-mes="11" placeholder="0,00" style="width: 100%; padding: 8px; border: 1px solid #d1d5db; border-radius: 4px; text-align: right; font-size: 14px;" data-testid="input-mes-11">
+                            </td>
+                            <td style="padding: 8px; border: 1px solid #e5e7eb;">
+                                <input type="text" class="mes-input" data-mes="12" placeholder="0,00" style="width: 100%; padding: 8px; border: 1px solid #d1d5db; border-radius: 4px; text-align: right; font-size: 14px;" data-testid="input-mes-12">
+                            </td>
+                            <td style="padding: 12px; border: 1px solid #e5e7eb; background: #f3f4f6; text-align: right; font-weight: 700; font-size: 16px; color: #dc2626;" id="total-anual" data-testid="text-total-anual">
+                                R$ 0,00
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+            </div>
+        </section>
+
+        <!-- Botões de Ação -->
+        <div class="form-actions">
+            <button type="button" class="btn btn-secondary" onclick="window.location.href='/planejar'" data-testid="button-cancelar">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width: 16px; height: 16px; margin-right: 6px; vertical-align: -2px;">
+                    <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+                </svg>
+                Cancelar
+            </button>
+            <button type="submit" class="btn btn-primary" data-testid="button-salvar">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width: 16px; height: 16px; margin-right: 6px; vertical-align: -2px;">
+                    <polyline points="20,6 9,17 4,12"/>
+                </svg>
+                Salvar Planejamento
+            </button>
+        </div>
+    </form>
+</div>
+
+<!-- Modal Criar Versão Rápido -->
+<div id="modal-criar-versao" class="modal" style="display: none;">
+    <div class="modal-content" style="max-width: 500px;">
+        <div class="modal-header">
+            <h3>Nova Versão</h3>
+            <button class="modal-close" onclick="fecharModalCriarVersao()" data-testid="button-fechar-modal-versao">&times;</button>
+        </div>
+        <div class="modal-body">
+            <div class="form-field">
+                <label for="nova-versao-nome" class="form-label required">Nome da Versão</label>
+                <input type="text" id="nova-versao-nome" class="form-input" placeholder="Ex: Orçamento 2025 - Revisão 1" data-testid="input-nova-versao-nome">
+            </div>
+            <div class="form-field">
+                <label for="nova-versao-ano" class="form-label required">Ano</label>
+                <select id="nova-versao-ano" class="form-select" data-testid="select-nova-versao-ano">
+                </select>
+            </div>
+            <div class="form-field">
+                <label for="nova-versao-tipo" class="form-label required">Tipo</label>
+                <select id="nova-versao-tipo" class="form-select" data-testid="select-nova-versao-tipo">
+                    <option value="baseline">Baseline</option>
+                    <option value="revisao">Revisão</option>
+                </select>
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" onclick="fecharModalCriarVersao()" data-testid="button-cancelar-versao">Cancelar</button>
+            <button type="button" class="btn btn-primary" onclick="salvarNovaVersao()" data-testid="button-salvar-versao">
+                <i class="fas fa-check"></i> Criar Versão
+            </button>
+        </div>
+    </div>
+</div>
+
+{% block scripts %}
+<script src="/static/js/planejar_despesa.js"></script>
+{% endblock %}
+{% endblock %}

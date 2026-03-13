@@ -1,0 +1,405 @@
+{% extends "base.html" %}
+
+{% block title %}Categorizar - Bennu Finance{% endblock %}
+
+{% block content %}
+<style>
+    .categorizar-compact { font-size: 11px; }
+    .categorizar-compact .page-header { margin-bottom: 4px; }
+    .categorizar-compact .page-title { font-size: 1rem; margin: 0; }
+    .categorizar-compact .page-subtitle { font-size: 0.65rem; margin: 0; }
+    .categorizar-compact .summary-card { padding: 8px 10px; }
+    .categorizar-compact .summary-card h3 { font-size: 0.65rem; margin-bottom: 2px; }
+    .categorizar-compact .summary-card .card-value { font-size: 1rem; }
+    .categorizar-compact .summary-card .card-subtitle { font-size: 0.6rem; }
+    .categorizar-compact .tabs-header { padding: 2px 0; }
+    .categorizar-compact .tab-button { padding: 3px 8px; font-size: 0.65rem; }
+    .categorizar-compact .section-title { font-size: 0.7rem; margin-bottom: 4px; }
+    .categorizar-compact .chart-container h4 { font-size: 0.55rem; }
+    .categorizar-compact .chart-container { min-height: 260px !important; }
+    .categorizar-compact .chart-legend { max-height: 150px; overflow-y: auto; }
+    .categorizar-compact .chart-legend .legend-item { margin-bottom: 2px !important; padding: 2px !important; }
+    .categorizar-compact .chart-legend .legend-item span { font-size: 0.55rem !important; }
+    .categorizar-table tbody tr { height: 18px !important; }
+    .categorizar-table tbody td { padding: 1px 4px !important; font-size: 0.6rem !important; line-height: 1 !important; vertical-align: middle !important; }
+    .categorizar-table thead th { font-size: 0.6rem !important; font-weight: 600; padding: 2px 4px !important; }
+    .charts-grid-despesas, .charts-grid-receitas { width: 100% !important; }
+    .charts-grid-despesas .chart-container, .charts-grid-receitas .chart-container { width: 100% !important; }
+    .tab-content { margin-bottom: 4px !important; padding-bottom: 0 !important; }
+</style>
+<div class="categorization-page categorizar-compact" style="padding: 6px 12px; max-width: 100%;">
+    <div class="page-header">
+        <h1 class="page-title">Categorizar Transações</h1>
+        <p class="page-subtitle">Organize suas receitas e despesas em massa</p>
+    </div>
+
+    <!-- Cards de Resumo Compactos - 6 cards em uma linha -->
+    <div style="display: grid; grid-template-columns: repeat(6, 1fr); gap: 8px; margin-bottom: 8px;">
+        <div class="summary-card green" style="padding: 8px 10px;">
+            <h3 style="font-size: 0.6rem; margin-bottom: 2px; opacity: 0.9;">Receitas</h3>
+            <div class="card-value" id="receitas-total" style="font-size: 1rem; font-weight: 700;">-</div>
+            <div class="card-subtitle" id="receitas-valor" style="font-size: 0.55rem;">R$ 0,00</div>
+        </div>
+        <div class="summary-card green-light clickable-card" data-filter-type="receitas" data-filter-status="categorizadas" data-testid="card-receitas-categorizadas" style="padding: 8px 10px;">
+            <h3 style="font-size: 0.6rem; margin-bottom: 2px;">Rec. Categorizadas</h3>
+            <div class="card-value" id="receitas-completas" style="font-size: 1rem; font-weight: 700;">-</div>
+            <div class="card-subtitle" id="receitas-completas-percent" style="font-size: 0.55rem;">0%</div>
+        </div>
+        <div class="summary-card yellow-light clickable-card" data-filter-type="receitas" data-filter-status="pendentes" data-testid="card-receitas-pendentes" style="padding: 8px 10px;">
+            <h3 style="font-size: 0.6rem; margin-bottom: 2px;">Rec. Pendentes</h3>
+            <div class="card-value" id="receitas-incompletas" style="font-size: 1rem; font-weight: 700;">-</div>
+            <div class="card-subtitle" id="receitas-incompletas-percent" style="font-size: 0.55rem;">0%</div>
+        </div>
+        <div class="summary-card red" style="padding: 8px 10px;">
+            <h3 style="font-size: 0.6rem; margin-bottom: 2px; opacity: 0.9;">Despesas</h3>
+            <div class="card-value" id="despesas-total" style="font-size: 1rem; font-weight: 700;">-</div>
+            <div class="card-subtitle" id="despesas-valor" style="font-size: 0.55rem;">R$ 0,00</div>
+        </div>
+        <div class="summary-card blue clickable-card" data-filter-type="despesas" data-filter-status="categorizadas" data-testid="card-despesas-categorizadas" style="padding: 8px 10px;">
+            <h3 style="font-size: 0.6rem; margin-bottom: 2px;">Desp. Categorizadas</h3>
+            <div class="card-value" id="despesas-completas" style="font-size: 1rem; font-weight: 700;">-</div>
+            <div class="card-subtitle" id="despesas-completas-percent" style="font-size: 0.55rem;">0%</div>
+        </div>
+        <div class="summary-card yellow clickable-card" data-filter-type="despesas" data-filter-status="pendentes" data-testid="card-despesas-pendentes" style="padding: 8px 10px;">
+            <h3 style="font-size: 0.6rem; margin-bottom: 2px;">Desp. Pendentes</h3>
+            <div class="card-value" id="despesas-incompletas" style="font-size: 1rem; font-weight: 700;">-</div>
+            <div class="card-subtitle" id="despesas-incompletas-percent" style="font-size: 0.55rem;">0%</div>
+        </div>
+    </div>
+
+    <!-- Sistema de Abas com Filtros Inline -->
+    <div class="tabs-container">
+        <div class="tabs-header" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 4px; padding: 4px 0;">
+            <div style="display: flex; gap: 4px;">
+                <button class="tab-button active" id="tab-despesas" data-tab="despesas" data-testid="button-tab-despesas">
+                    Despesas <span class="tab-counter" id="counter-despesas">163</span>
+                </button>
+                <button class="tab-button" id="tab-receitas" data-tab="receitas" data-testid="button-tab-receitas">
+                    Receitas <span class="tab-counter" id="counter-receitas">28</span>
+                </button>
+            </div>
+            <!-- Filtros movidos para o lado das abas - mesma ordem dos gráficos -->
+            <div class="filters-inline" style="display: flex; gap: 4px; align-items: center; flex-wrap: wrap;">
+                <input type="text" id="filter-descricao" class="filter-input" placeholder="Buscar..." style="padding: 2px 4px; font-size: 0.6rem; height: 22px; width: 100px;">
+                <select id="filter-mes" class="filter-select" style="padding: 2px 4px; font-size: 0.6rem; height: 22px; width: 70px;">
+                    <option value="">Mês</option>
+                    <option value="1">Jan</option><option value="2">Fev</option><option value="3">Mar</option>
+                    <option value="4">Abr</option><option value="5">Mai</option><option value="6">Jun</option>
+                    <option value="7">Jul</option><option value="8">Ago</option><option value="9">Set</option>
+                    <option value="10">Out</option><option value="11">Nov</option><option value="12">Dez</option>
+                </select>
+                <select id="filter-ano" class="filter-select" style="padding: 2px 4px; font-size: 0.6rem; height: 22px; width: 60px;">
+                    <option value="">Ano</option>
+                </select>
+                <!-- Despesas: Cat.Ger > SubCat > C.Custo > Cat.Cont (mesma ordem dos gráficos) -->
+                <select id="filter-categoria-gerencial" class="filter-select" style="padding: 2px 4px; font-size: 0.6rem; height: 22px; width: 80px;" data-filter-type="despesas">
+                    <option value="">Cat.Ger</option>
+                </select>
+                <select id="filter-subcategoria-gerencial" class="filter-select" style="padding: 2px 4px; font-size: 0.6rem; height: 22px; width: 80px;" data-filter-type="despesas">
+                    <option value="">SubCat</option>
+                </select>
+                <select id="filter-centro-custo" class="filter-select" style="padding: 2px 4px; font-size: 0.6rem; height: 22px; width: 90px;" data-filter-type="despesas">
+                    <option value="">C.Custo</option>
+                </select>
+                <select id="filter-categoria-contabil" class="filter-select" style="padding: 2px 4px; font-size: 0.6rem; height: 22px; width: 80px;" data-filter-type="despesas">
+                    <option value="">Cat.Cont</option>
+                </select>
+                <!-- Receitas: Projeto > Cliente > Produto (mesma ordem dos gráficos) -->
+                <select id="filter-projeto" class="filter-select" style="padding: 2px 4px; font-size: 0.6rem; height: 22px; width: 80px; display: none;" data-filter-type="receitas">
+                    <option value="">Projeto</option>
+                </select>
+                <select id="filter-cliente" class="filter-select" style="padding: 2px 4px; font-size: 0.6rem; height: 22px; width: 80px; display: none;" data-filter-type="receitas">
+                    <option value="">Cliente</option>
+                </select>
+                <select id="filter-produto-servico" class="filter-select" style="padding: 2px 4px; font-size: 0.6rem; height: 22px; width: 80px; display: none;" data-filter-type="receitas">
+                    <option value="">Produto</option>
+                </select>
+                <button class="btn btn-secondary" id="clear-filters" style="padding: 2px 6px; font-size: 0.55rem; height: 22px;">🧹</button>
+            </div>
+        </div>
+
+        <!-- Aba de Despesas -->
+        <div class="tab-content active" id="content-despesas">
+            <h2 class="section-title" style="font-size: 0.7rem; margin: 4px 0;">Análise - Despesas</h2>
+            <div class="charts-grid-despesas" style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px;">
+                <div class="chart-container" style="padding: 6px 8px; min-height: 260px;">
+                    <h4 style="font-size: 0.6rem; margin-bottom: 2px;">Categorias Gerenciais</h4>
+                    <canvas id="chart-categoria-gerencial" style="max-height: 120px;"></canvas>
+                    <div class="chart-legend" id="legend-categoria-gerencial" style="font-size: 0.5rem; line-height: 1.1;"></div>
+                </div>
+                <div class="chart-container" style="padding: 6px 8px; min-height: 260px;">
+                    <h4 style="font-size: 0.6rem; margin-bottom: 2px;">Subcategorias Gerenciais</h4>
+                    <canvas id="chart-subcategoria-gerencial" style="max-height: 120px;"></canvas>
+                    <div class="chart-legend" id="legend-subcategoria-gerencial" style="font-size: 0.5rem; line-height: 1.1;"></div>
+                </div>
+                <div class="chart-container" style="padding: 6px 8px; min-height: 260px;">
+                    <h4 style="font-size: 0.6rem; margin-bottom: 2px;">Centros de Custo</h4>
+                    <canvas id="chart-centro-custo" style="max-height: 120px;"></canvas>
+                    <div class="chart-legend" id="legend-centro-custo" style="font-size: 0.5rem; line-height: 1.1;"></div>
+                </div>
+                <div class="chart-container" style="padding: 6px 8px; min-height: 260px;">
+                    <h4 style="font-size: 0.6rem; margin-bottom: 2px;">Categorias Contábeis</h4>
+                    <canvas id="chart-categoria-contabil" style="max-height: 120px;"></canvas>
+                    <div class="chart-legend" id="legend-categoria-contabil" style="font-size: 0.5rem; line-height: 1.1;"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Aba de Receitas -->
+        <div class="tab-content" id="content-receitas">
+            <h2 class="section-title" style="font-size: 0.7rem; margin: 4px 0;">Análise - Receitas</h2>
+            <div class="charts-grid-receitas" style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px;">
+                <div class="chart-container" style="padding: 6px 8px; min-height: 260px;">
+                    <h4 style="font-size: 0.6rem; margin-bottom: 2px;">Receitas por Projeto</h4>
+                    <canvas id="chart-projeto" style="max-height: 120px;"></canvas>
+                    <div class="chart-legend" id="legend-projeto" style="font-size: 0.5rem; line-height: 1.1;"></div>
+                </div>
+                <div class="chart-container" style="padding: 6px 8px; min-height: 260px;">
+                    <h4 style="font-size: 0.6rem; margin-bottom: 2px;">Receitas por Cliente</h4>
+                    <canvas id="chart-cliente" style="max-height: 120px;"></canvas>
+                    <div class="chart-legend" id="legend-cliente" style="font-size: 0.5rem; line-height: 1.1;"></div>
+                </div>
+                <div class="chart-container" style="padding: 6px 8px; min-height: 260px;">
+                    <h4 style="font-size: 0.6rem; margin-bottom: 2px;">Receitas por Produto/Serviço</h4>
+                    <canvas id="chart-produto-servico" style="max-height: 120px;"></canvas>
+                    <div class="chart-legend" id="legend-produto-servico" style="font-size: 0.5rem; line-height: 1.1;"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+        <!-- Tabela de Despesas Ultra Compacta -->
+        <div class="transactions-section" id="table-despesas" style="margin-bottom: 4px;">
+            <div class="transactions-header" style="padding: 2px 6px; display: flex; align-items: center; gap: 6px; flex-wrap: wrap; background: #f8fafc;">
+                <h3 style="font-size: 0.7rem; margin: 0;">Despesas <span id="count-despesas" class="record-count" style="font-size: 0.6rem;"></span></h3>
+                <button class="scroll-btn" onclick="scrollTableToStart('despesas-table')" style="padding: 1px 3px; font-size: 0.55rem;">◀</button>
+                <button class="scroll-btn" onclick="scrollTableToEnd('despesas-table')" style="padding: 1px 3px; font-size: 0.55rem;">▶</button>
+                <div class="selection-actions" style="display: flex; align-items: center; gap: 4px; font-size: 0.55rem; margin-left: auto;">
+                    <label style="font-size: 0.55rem;"><input type="checkbox" id="select-all-despesas"> Pág</label>
+                    <label style="font-size: 0.55rem;"><input type="checkbox" id="select-all-filtered-despesas"> Filtro</label>
+                    <button class="btn btn-secondary" id="deselect-all-despesas" style="padding: 1px 4px; font-size: 0.5rem;">✕</button>
+                    <span style="font-size: 0.55rem;">(<span id="selected-count-despesas">0</span>)</span>
+                    <button class="btn btn-primary" id="categorize-selected-despesas" style="padding: 2px 6px; font-size: 0.55rem;">✏️ Cat.</button>
+                </div>
+            </div>
+            <div class="advanced-table-container" style="max-height: calc(100vh - 420px); overflow-y: auto;">
+                <div class="advanced-table-wrapper" style="overflow-x: auto;">
+                    <table class="advanced-table transactions-table categorizar-table" id="despesas-table" style="min-width: 1200px; font-size: 0.6rem;">
+                        <thead>
+                            <tr style="height: 22px;">
+                                <th class="checkbox-cell" style="padding: 2px 4px;"><input type="checkbox" id="select-all-despesas-header" data-testid="checkbox-select-all-despesas"></th>
+                                <th data-field="data_lancamento" class="sortable-header" style="padding: 2px 4px;">Lanç.</th>
+                                <th data-field="descricao" class="sortable-header" style="padding: 2px 4px;">Descrição</th>
+                                <th data-field="categoria_gerencial_nome" class="sortable-header" style="padding: 2px 4px;">Cat.Ger</th>
+                                <th data-field="subcategoria_gerencial_nome" class="sortable-header" style="padding: 2px 4px;">SubCat</th>
+                                <th data-field="centro_custo_nome" class="sortable-header" style="padding: 2px 4px;">C.Custo</th>
+                                <th data-field="categoria_contabil_nome" class="sortable-header" style="padding: 2px 4px;">Cat.Cont</th>
+                                <th data-field="status" class="sortable-header" style="padding: 2px 4px;">Status</th>
+                                <th data-field="valor" class="sortable-header" style="padding: 2px 4px;">Valor</th>
+                                <th data-field="fornecedor_nome" class="sortable-header" style="padding: 2px 4px;">Fornecedor</th>
+                                <th class="actions-cell" style="padding: 2px 4px;">Ações</th>
+                            </tr>
+                        </thead>
+                        <tbody id="transactions-tbody-despesas" data-testid="tbody-despesas"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tabela de Receitas Ultra Compacta -->
+        <div class="transactions-section" id="table-receitas" style="margin-bottom: 4px;">
+            <div class="transactions-header" style="padding: 2px 6px; display: flex; align-items: center; gap: 6px; flex-wrap: wrap; background: #f8fafc;">
+                <h3 style="font-size: 0.7rem; margin: 0;">Receitas <span id="count-receitas" class="record-count" style="font-size: 0.6rem;"></span></h3>
+                <button class="scroll-btn" onclick="scrollTableToStart('receitas-table')" style="padding: 1px 3px; font-size: 0.55rem;">◀</button>
+                <button class="scroll-btn" onclick="scrollTableToEnd('receitas-table')" style="padding: 1px 3px; font-size: 0.55rem;">▶</button>
+                <div class="selection-actions" style="display: flex; align-items: center; gap: 4px; font-size: 0.55rem; margin-left: auto;">
+                    <label style="font-size: 0.55rem;"><input type="checkbox" id="select-all-receitas"> Pág</label>
+                    <label style="font-size: 0.55rem;"><input type="checkbox" id="select-all-filtered-receitas"> Filtro</label>
+                    <button class="btn btn-secondary" id="deselect-all-receitas" style="padding: 1px 4px; font-size: 0.5rem;">✕</button>
+                    <span style="font-size: 0.55rem;">(<span id="selected-count-receitas">0</span>)</span>
+                    <button class="btn btn-primary" id="categorize-selected-receitas" style="padding: 2px 6px; font-size: 0.55rem;">✏️ Cat.</button>
+                </div>
+            </div>
+            <div class="advanced-table-container" style="max-height: calc(100vh - 420px); overflow-y: auto;">
+                <div class="advanced-table-wrapper" style="overflow-x: auto;">
+                    <table class="advanced-table transactions-table categorizar-table" id="receitas-table" style="min-width: 1000px; font-size: 0.6rem;">
+                        <thead>
+                            <tr style="height: 22px;">
+                                <th class="checkbox-cell" style="padding: 2px 4px;"><input type="checkbox" id="select-all-receitas-header" data-testid="checkbox-select-all-receitas"></th>
+                                <th data-field="data_lancamento" class="sortable-header" style="padding: 2px 4px;">Lanç.</th>
+                                <th data-field="descricao" class="sortable-header" style="padding: 2px 4px;">Descrição</th>
+                                <th data-field="cliente_nome" class="sortable-header" style="padding: 2px 4px;">Cliente</th>
+                                <th data-field="projeto_nome" class="sortable-header" style="padding: 2px 4px;">Projeto</th>
+                                <th data-field="produto_servico_nome" class="sortable-header" style="padding: 2px 4px;">Prod/Serv</th>
+                                <th data-field="status" class="sortable-header" style="padding: 2px 4px;">Status</th>
+                                <th data-field="valor" class="sortable-header" style="padding: 2px 4px;">Valor</th>
+                                <th data-field="observacoes" class="sortable-header" style="padding: 2px 4px;">Obs</th>
+                                <th class="actions-cell" style="padding: 2px 4px;">Ações</th>
+                            </tr>
+                        </thead>
+                        <tbody id="transactions-tbody-receitas" data-testid="tbody-receitas">
+                            <!-- Dados carregados via JavaScript -->
+                        </tbody>
+                    </table>
+                </div>
+                <!-- Botões de rolagem no final da tabela -->
+                <div class="table-scroll-footer" style="display: flex; justify-content: flex-end; padding: 8px 16px; background: #f8fafc; border-top: 1px solid #e5e7eb;">
+                    <div class="table-scroll-controls" style="display: flex; align-items: center; gap: 4px;">
+                        <button class="scroll-btn" onclick="scrollTableToStart('receitas-table')" title="Rolar para o início">
+                            ◀
+                        </button>
+                        <span style="font-size: 12px; color: #6b7280; padding: 0 8px;">rolagem</span>
+                        <button class="scroll-btn" onclick="scrollTableToEnd('receitas-table')" title="Rolar para o final">
+                            ▶
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Paginação Compacta para despesas -->
+        <div class="table-pagination" id="pagination-despesas" style="padding: 4px 8px; background: #f8fafc;">
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+                <div class="pagination-info" style="font-size: 0.65rem;">
+                    <span id="despesas-showing-from">1</span>-<span id="despesas-showing-to">10</span> 
+                    de <span id="despesas-total-records">0</span>
+                </div>
+                <div class="pagination-controls" style="display: flex; gap: 4px; align-items: center;">
+                    <button id="despesas-prev-page" onclick="despesasPreviousPage()" class="btn btn-secondary" style="padding: 2px 6px; font-size: 0.6rem;" disabled>◀ Ant</button>
+                    <span style="font-size: 0.6rem;"><span id="despesas-current-page">1</span>/<span id="despesas-total-pages">1</span></span>
+                    <button id="despesas-next-page" onclick="despesasNextPage()" class="btn btn-secondary" style="padding: 2px 6px; font-size: 0.6rem;" disabled>Próx ▶</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Paginação Compacta para receitas -->
+        <div class="table-pagination" id="pagination-receitas" style="display: none; padding: 4px 8px; background: #f8fafc;">
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+                <div class="pagination-info" style="font-size: 0.65rem;">
+                    <span id="receitas-showing-from">1</span>-<span id="receitas-showing-to">10</span> 
+                    de <span id="receitas-total-records">0</span>
+                </div>
+                <div class="pagination-controls" style="display: flex; gap: 4px; align-items: center;">
+                    <button id="receitas-prev-page" onclick="receitasPreviousPage()" class="btn btn-secondary" style="padding: 2px 6px; font-size: 0.6rem;" disabled>◀ Ant</button>
+                    <span style="font-size: 0.6rem;"><span id="receitas-current-page">1</span>/<span id="receitas-total-pages">1</span></span>
+                    <button id="receitas-next-page" onclick="receitasNextPage()" class="btn btn-secondary" style="padding: 2px 6px; font-size: 0.6rem;" disabled>Próx ▶</button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal de Categorização -->
+<div id="categorization-modal" class="modal" style="display: none;">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3>Categorizar Selecionados</h3>
+            <button class="modal-close" id="categorization-modal-close" data-testid="button-close-categorization">&times;</button>
+        </div>
+        <div class="modal-body">
+            <!-- Campos para Despesas -->
+            <div id="modal-despesas-fields" class="categorization-form">
+                <h4>
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width: 20px; height: 20px; margin-right: 8px; vertical-align: -3px;">
+                        <line x1="18" y1="20" x2="18" y2="10"/>
+                        <line x1="12" y1="20" x2="12" y2="4"/>
+                        <line x1="6" y1="20" x2="6" y2="14"/>
+                    </svg>
+                    Categorização de Despesas
+                </h4>
+                <div class="form-group">
+                    <label>Categoria Gerencial</label>
+                    <select id="bulk-categoria-gerencial" class="form-select">
+                        <option value="">Manter atual</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label>Subcategoria Gerencial</label>
+                    <select id="bulk-subcategoria-gerencial" class="form-select">
+                        <option value="">Manter atual</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label>Centro de Custo</label>
+                    <select id="bulk-centro-custo" class="form-select">
+                        <option value="">Manter atual</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label>Categoria Contábil</label>
+                    <select id="bulk-categoria-contabil" class="form-select">
+                        <option value="">Manter atual</option>
+                    </select>
+                </div>
+            </div>
+
+            <!-- Campos para Receitas -->
+            <div id="modal-receitas-fields" class="categorization-form" style="display: none;">
+                <h4>
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width: 20px; height: 20px; margin-right: 8px; vertical-align: -3px;">
+                        <line x1="12" y1="1" x2="12" y2="23"/>
+                        <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>
+                    </svg>
+                    Categorização de Receitas
+                </h4>
+                <div class="form-group">
+                    <label>Cliente</label>
+                    <select id="bulk-cliente" class="form-select">
+                        <option value="">Manter atual</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label>Projeto</label>
+                    <select id="bulk-projeto" class="form-select">
+                        <option value="">Manter atual</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label>Produto/Serviço</label>
+                    <select id="bulk-produto-servico" class="form-select">
+                        <option value="">Manter atual</option>
+                    </select>
+                </div>
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-secondary" id="categorization-cancel-btn" data-testid="button-cancel-categorization">Cancelar</button>
+            <button class="btn btn-primary" id="categorization-save-btn" data-testid="button-save-categorization">💾 Salvar</button>
+        </div>
+    </div>
+</div>
+
+<!-- Dropdown para filtros de coluna -->
+<div id="column-filter-dropdown" class="column-filter-dropdown" style="display: none;">
+    <div class="filter-dropdown-header">
+        <input type="text" id="filter-search" placeholder="Pesquisar..." class="filter-search-input">
+        <button onclick="clearColumnFilter()" class="filter-clear-btn">Limpar</button>
+    </div>
+    <div class="filter-options-container" id="filter-options">
+        <!-- Opções serão inseridas via JavaScript -->
+    </div>
+    <div class="filter-dropdown-footer">
+        <button onclick="applyColumnFilter()" class="btn btn-primary btn-sm">Aplicar</button>
+        <button onclick="closeColumnFilter()" class="btn btn-secondary btn-sm">Fechar</button>
+    </div>
+</div>
+
+<!-- Loading Overlay (Hidden by default) -->
+<div id="loading-overlay" class="loading-overlay" style="display: none;">
+    <div class="loading-spinner">
+        <div class="spinner"></div>
+        <p>Salvando alterações...</p>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="/static/js/transaction-modal.js?v=20260118"></script>
+<script src="/static/js/categorizar.js?v=20260118"></script>
+{% endblock %}

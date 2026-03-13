@@ -1,0 +1,130 @@
+{% extends "base.html" %}
+
+{% block title %}Retenção na Fonte - Bennu Finance{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Header -->
+    <div style="display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-bottom: 20px;">
+        <div style="display: flex; align-items: center; gap: 12px;">
+            <div class="icon-circle" style="background-color: #ef4444; display: flex; align-items: center; justify-content: center;">
+                <svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" style="width: 16px; height: 16px;">
+                    <path d="M9 14l6-6"/>
+                    <circle cx="9.5" cy="14.5" r="2.5"/>
+                    <circle cx="14.5" cy="9.5" r="2.5"/>
+                </svg>
+            </div>
+            <h1 style="font-size: 24px; font-weight: bold; color: #374151; margin: 0;">Retenção na Fonte</h1>
+        </div>
+        <div style="display: flex; gap: 12px;">
+            <button type="button" class="btn btn-secondary" onclick="window.history.back()" style="padding: 8px 16px; font-size: 14px;">
+                ← Voltar
+            </button>
+            <button type="button" class="btn btn-primary" onclick="exportarCSV()" style="padding: 8px 16px; font-size: 14px;">
+                <i class="fas fa-download"></i> Exportar CSV
+            </button>
+            <button class="btn btn-primary" onclick="aplicarFiltros()" style="padding: 8px 16px; font-size: 14px;">
+                Buscar
+            </button>
+            <button class="btn btn-outline" onclick="limparFiltros()" style="padding: 8px 16px; font-size: 14px;">
+                Limpar
+            </button>
+        </div>
+    </div>
+    
+    <!-- Filtros -->
+    <div class="filters-section" style="background: white; border-radius: 8px; padding: 20px; margin-bottom: 24px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
+        <div style="display: flex; flex-wrap: wrap; gap: 16px; align-items: end;">
+            <div class="filter-group" style="min-width: 120px;">
+                <label for="filter-ano" style="font-size: 14px; font-weight: 500; color: #374151; margin-bottom: 4px; display: block;">Ano:</label>
+                <select id="filter-ano" class="form-select">
+                    <option value="">Todos os Anos</option>
+                </select>
+            </div>
+            <div class="filter-group" style="min-width: 140px;">
+                <label for="filter-mes" style="font-size: 14px; font-weight: 500; color: #374151; margin-bottom: 4px; display: block;">Mês:</label>
+                <select id="filter-mes" class="form-select">
+                    <option value="">Todos os Meses</option>
+                    <option value="1">Janeiro</option>
+                    <option value="2">Fevereiro</option>
+                    <option value="3">Março</option>
+                    <option value="4">Abril</option>
+                    <option value="5">Maio</option>
+                    <option value="6">Junho</option>
+                    <option value="7">Julho</option>
+                    <option value="8">Agosto</option>
+                    <option value="9">Setembro</option>
+                    <option value="10">Outubro</option>
+                    <option value="11">Novembro</option>
+                    <option value="12">Dezembro</option>
+                </select>
+            </div>
+            <div class="filter-group" style="min-width: 120px;">
+                <label for="filter-status" style="font-size: 14px; font-weight: 500; color: #374151; margin-bottom: 4px; display: block;">Status:</label>
+                <select id="filter-status" class="form-select">
+                    <option value="">Todos Status</option>
+                    <option value="pendente">Pendente</option>
+                    <option value="pago">Pago</option>
+                </select>
+            </div>
+            <div class="filter-group" style="min-width: 120px;">
+                <label for="filter-imposto" style="font-size: 14px; font-weight: 500; color: #374151; margin-bottom: 4px; display: block;">Imposto:</label>
+                <select id="filter-imposto" class="form-select">
+                    <option value="">Todos</option>
+                </select>
+            </div>
+            <div class="filter-group" style="min-width: 140px;">
+                <label for="filter-empresa" style="font-size: 14px; font-weight: 500; color: #374151; margin-bottom: 4px; display: block;">Empresa:</label>
+                <select id="filter-empresa" class="form-select">
+                    <option value="">Todas</option>
+                </select>
+            </div>
+        </div>
+    </div>
+
+    <!-- Resumo -->
+    <div id="resumo-container" style="display: flex; gap: 16px; margin-bottom: 24px; flex-wrap: nowrap; overflow-x: auto;">
+        <!-- Cards de resumo serão inseridos via JavaScript -->
+    </div>
+
+    <!-- Resumo por Imposto -->
+    <div id="resumo-impostos" style="background: white; border-radius: 8px; padding: 16px; margin-bottom: 24px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
+        <h3 style="font-size: 16px; font-weight: 600; color: #374151; margin-bottom: 12px;">Resumo por Tipo de Imposto</h3>
+        <div id="impostos-grid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 12px;">
+            <!-- Cards por imposto serão inseridos via JavaScript -->
+        </div>
+    </div>
+
+    <!-- Tabela -->
+    <div class="card">
+        <div class="table-responsive">
+            <table class="table table-hover mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th class="fw-semibold">Imposto</th>
+                        <th class="fw-semibold">Fornecedor</th>
+                        <th class="fw-semibold">Empresa</th>
+                        <th class="fw-semibold text-end">Valor</th>
+                        <th class="fw-semibold text-center">Status</th>
+                        <th class="fw-semibold text-center">Competência</th>
+                        <th class="fw-semibold text-center">Vencimento</th>
+                    </tr>
+                </thead>
+            <tbody id="tabela-retencoes">
+                <tr>
+                    <td colspan="7" style="padding: 40px; text-align: center; color: #6b7280;">
+                        <div style="display: flex; flex-direction: column; align-items: center; gap: 8px;">
+                            <div class="spinner"></div>
+                            <span>Carregando retenções...</span>
+                        </div>
+                    </td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="/static/js/retencao-fonte.js"></script>
+{% endblock %}

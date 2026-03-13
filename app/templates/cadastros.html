@@ -1,0 +1,150 @@
+{% extends "base.html" %}
+
+{% block title %}Cadastros - Bennu Finance{% endblock %}
+
+{% block content %}
+<div class="container" style="max-width: 1600px; margin: 0 auto; padding: 8px 16px;">
+    <div class="page-header" style="text-align: center; margin-bottom: 10px;">
+        <h1 style="font-size: 1.1rem; font-weight: 700; color: #1f2937; margin-bottom: 4px;"><i class="fas fa-cogs"></i> Cadastros</h1>
+        <p style="color: #6b7280; font-size: 0.75rem; margin: 0;">Selecione o tipo de cadastro que deseja gerenciar</p>
+    </div>
+
+    <div class="cadastros-grid">
+        <!-- Linha 1 -->
+        <div class="cadastro-card" onclick="window.location.href='/listagem/empresas'">
+            <div class="cadastro-icon"><i class="fas fa-building"></i></div>
+            <h3>Empresas</h3>
+            <p>Dados das empresas</p>
+        </div>
+        <div class="cadastro-card" onclick="window.location.href='/listagem/clientes'">
+            <div class="cadastro-icon"><i class="fas fa-users"></i></div>
+            <h3>Clientes</h3>
+            <p>Gestão de clientes</p>
+        </div>
+        <div class="cadastro-card" onclick="window.location.href='/listagem/fornecedores'">
+            <div class="cadastro-icon"><i class="fas fa-truck"></i></div>
+            <h3>Fornecedores</h3>
+            <p>Cadastro de fornecedores</p>
+        </div>
+        <div class="cadastro-card" onclick="window.location.href='/listagem/projetos'">
+            <div class="cadastro-icon"><i class="fas fa-diagram-project"></i></div>
+            <h3>Projetos</h3>
+            <p>Gerenciamento de projetos</p>
+        </div>
+
+        <!-- Linha 2 -->
+        <div class="cadastro-card" onclick="window.location.href='/listagem/produtos-servicos'">
+            <div class="cadastro-icon"><i class="fas fa-box"></i></div>
+            <h3>Produtos/Serviços</h3>
+            <p>Catálogo de itens</p>
+        </div>
+        <div class="cadastro-card" onclick="window.location.href='/listagem/categorias-contabeis'">
+            <div class="cadastro-icon"><i class="fas fa-chart-pie"></i></div>
+            <h3>Cat. Contábeis</h3>
+            <p>Classificação contábil</p>
+        </div>
+        <div class="cadastro-card" onclick="window.location.href='/listagem/categorias-gerenciais'">
+            <div class="cadastro-icon"><i class="fas fa-sitemap"></i></div>
+            <h3>Cat. Gerenciais</h3>
+            <p>Classificação gerencial</p>
+        </div>
+        <div class="cadastro-card" onclick="window.location.href='/listagem/subcategorias'">
+            <div class="cadastro-icon"><i class="fas fa-tags"></i></div>
+            <h3>Subcategorias</h3>
+            <p>Subcategorias contábeis/gerenciais</p>
+        </div>
+
+        <!-- Linha 3 -->
+        <div class="cadastro-card" onclick="window.location.href='/listagem/centros-custo'">
+            <div class="cadastro-icon"><i class="fas fa-bullseye"></i></div>
+            <h3>Centros de Custo</h3>
+            <p>Centros de responsabilidade</p>
+        </div>
+        <div class="cadastro-card" onclick="window.location.href='/listagem/impostos'">
+            <div class="cadastro-icon"><i class="fas fa-percentage"></i></div>
+            <h3>Impostos</h3>
+            <p>Configuração de tributos</p>
+        </div>
+        <div class="cadastro-card" onclick="window.location.href='/listagem/contas-bancarias'">
+            <div class="cadastro-icon"><i class="fas fa-university"></i></div>
+            <h3>Contas Bancárias</h3>
+            <p>Contas do banco</p>
+        </div>
+        <div class="cadastro-card" onclick="window.location.href='/listagem/cartoes-credito'">
+            <div class="cadastro-icon"><i class="fas fa-credit-card"></i></div>
+            <h3>Cartão de Crédito</h3>
+            <p>Gestão de cartões</p>
+        </div>
+    </div>
+</div>
+
+<style>
+.cadastros-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 12px;
+}
+
+.cadastro-card {
+    background: white;
+    border-radius: 8px;
+    padding: 12px 10px;
+    text-align: center;
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.1);
+    cursor: pointer;
+    transition: all 0.2s ease;
+    border: 1px solid transparent;
+}
+
+.cadastro-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
+    border-color: #3b82f6;
+}
+
+.cadastro-icon {
+    width: 40px;
+    height: 40px;
+    background: linear-gradient(135deg, #3b82f6, #1d4ed8);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto 8px;
+    color: white;
+    font-size: 16px;
+}
+
+.cadastro-card:hover .cadastro-icon {
+    transform: scale(1.05);
+}
+
+.cadastro-card h3 {
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: #1f2937;
+    margin: 0 0 4px 0;
+}
+
+.cadastro-card p {
+    color: #6b7280;
+    font-size: 0.65rem;
+    margin: 0;
+    line-height: 1.3;
+}
+
+/* Cores específicas por categoria */
+.cadastro-card:nth-child(1) .cadastro-icon { background: linear-gradient(135deg, #8b5cf6, #7c3aed); }
+.cadastro-card:nth-child(2) .cadastro-icon { background: linear-gradient(135deg, #10b981, #059669); }
+.cadastro-card:nth-child(3) .cadastro-icon { background: linear-gradient(135deg, #f59e0b, #d97706); }
+.cadastro-card:nth-child(4) .cadastro-icon { background: linear-gradient(135deg, #ef4444, #dc2626); }
+.cadastro-card:nth-child(5) .cadastro-icon { background: linear-gradient(135deg, #6366f1, #4f46e5); }
+.cadastro-card:nth-child(6) .cadastro-icon { background: linear-gradient(135deg, #3b82f6, #2563eb); }
+.cadastro-card:nth-child(7) .cadastro-icon { background: linear-gradient(135deg, #14b8a6, #0d9488); }
+.cadastro-card:nth-child(8) .cadastro-icon { background: linear-gradient(135deg, #f97316, #ea580c); }
+.cadastro-card:nth-child(9) .cadastro-icon { background: linear-gradient(135deg, #84cc16, #65a30d); }
+.cadastro-card:nth-child(10) .cadastro-icon { background: linear-gradient(135deg, #ec4899, #db2777); }
+.cadastro-card:nth-child(11) .cadastro-icon { background: linear-gradient(135deg, #06b6d4, #0891b2); }
+.cadastro-card:nth-child(12) .cadastro-icon { background: linear-gradient(135deg, #6b7280, #4b5563); }
+</style>
+{% endblock %}

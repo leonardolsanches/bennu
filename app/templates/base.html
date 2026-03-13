@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Bennu Finance{% endblock %}</title>
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='0.9em' font-size='90'>💰</text></svg>">
+    <link rel="stylesheet" href="/static/css/style.css">
+    <link rel="stylesheet" href="/static/css/relatorios.css">
+    <link rel="stylesheet" href="/static/css/advanced-tables.css">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+</head>
+<body>
+    <nav class="navbar">
+        <div class="nav-brand">
+            <img src="/static/images/logo.png" alt="Bennu Finance">
+            <h1>Bennu Finance</h1>
+        </div>
+        <div class="nav-menu">
+            <a href="/" class="nav-link"><i class="fas fa-chart-bar"></i> Dashboard</a>
+            <a href="/cadastros" class="nav-link"><i class="fas fa-cogs"></i> Cadastros</a>
+            <a href="/nova-receita" class="nav-link"><i class="fas fa-plus-circle text-green-500"></i> Nova Receita</a>
+            <a href="/nova-despesa" class="nav-link"><i class="fas fa-minus-circle text-red-500"></i> Nova Despesa</a>
+            <a href="/planejar" class="nav-link">
+                <i class="fas fa-calendar"></i>
+                <span>Planejar</span>
+            </a>
+            <a href="/categorizar" class="nav-link"><i class="fas fa-tags"></i> Categorizar</a>
+            <a href="/desmembrar" class="nav-link"><i class="fas fa-wrench"></i> Desmembrar</a>
+            <a href="/relatorios" class="nav-link"><i class="fas fa-chart-line"></i> Relatórios</a>
+            <a href="/api/logout" class="nav-link"><i class="fas fa-sign-out-alt"></i> Sair</a>
+        </div>
+    </nav>
+
+    <main class="main-content">
+        {% block content %}{% endblock %}
+    </main>
+
+    <footer class="page-footer">
+        <a href="/admin-impostos" class="footer-link" title="Gestão de Impostos">
+            <i class="fas fa-file-invoice-dollar"></i>
+        </a>
+        <span class="footer-separator">|</span>
+        <a href="/admin-rateio" class="footer-link" title="Rateio de Despesas">
+            <i class="fas fa-chart-pie"></i>
+        </a>
+        <span class="footer-separator">|</span>
+        <a href="/admin-rateio-impostos" class="footer-link" title="Rateio de Impostos">
+            <i class="fas fa-receipt"></i>
+        </a>
+        <span class="footer-separator">|</span>
+        <a href="/admin-backup" class="footer-link" title="Backup e Limpeza">
+            <i class="fas fa-database"></i>
+        </a>
+        <span class="footer-separator">|</span>
+        <a href="/admin" class="footer-link" title="Logs e Auditoria">
+            <i class="fas fa-shield-alt"></i>
+        </a>
+    </footer>
+
+    <!-- Modal Container -->
+    <div id="modal-overlay" class="modal-overlay" onclick="closeModal()">
+        <div id="modal-content" class="modal-content" onclick="event.stopPropagation()">
+            <div class="modal-header">
+                <h2 id="modal-title">Cadastro</h2>
+                <button class="modal-close" onclick="closeModal()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <form id="modal-form" onsubmit="submitForm(event)">
+                    <div id="form-fields"></div>
+                    <div class="form-actions">
+                        <button type="button" class="btn btn-secondary" onclick="closeModal()">Cancelar</button>
+                        <button type="submit" class="btn btn-primary">Salvar</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <script src="/static/js/utils.js"></script>
+    <script src="/static/js/app.js"></script>
+    <script src="/static/js/modals.js"></script>
+    <script src="/static/js/transaction-modal.js"></script>
+    <script src="/static/js/advanced-tables.js"></script>
+    {% block scripts %}{% endblock %}
+</body>
+</html>

@@ -1,0 +1,352 @@
+
+{% extends "base.html" %}
+
+{% block title %}Gerenciar Subcategorias - Bennu Finance{% endblock %}
+
+{% block content %}
+<div class="page-container" style="max-width: 1400px; margin: 0 auto; padding: 24px;">
+    <div class="page-header" style="margin-bottom: 24px;">
+        <div style="display: flex; align-items: center; justify-content: space-between;">
+            <div style="display: flex; align-items: center; gap: 12px;">
+                <div class="icon-circle" style="background-color: #3b82f6; display: flex; align-items: center; justify-content: center;">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" style="width: 16px; height: 16px;">
+                        <path d="M9 12l2 2 4-4"/>
+                        <circle cx="12" cy="12" r="10"/>
+                    </svg>
+                </div>
+                <h1 style="font-size: 24px; font-weight: bold; color: #374151; margin: 0;">Gerenciar Subcategorias</h1>
+            </div>
+            <button type="button" class="btn-link" style="color: #6b7280; text-decoration: none; border: none; background: none; cursor: pointer;" onclick="window.history.back()">
+                ← Voltar
+            </button>
+        </div>
+    </div>
+
+    <!-- Tabs para alternar entre Contábeis e Gerenciais -->
+    <div class="tabs-container" style="margin-bottom: 24px;">
+        <div class="tabs" style="display: flex; border-bottom: 2px solid #e5e7eb;">
+            <button class="tab-button active" data-tab="contabeis" onclick="switchTab('contabeis')" 
+                    style="padding: 12px 24px; border: none; background: none; font-weight: 500; color: #3b82f6; border-bottom: 2px solid #3b82f6;">
+                Subcategorias Contábeis
+            </button>
+            <button class="tab-button" data-tab="gerenciais" onclick="switchTab('gerenciais')"
+                    style="padding: 12px 24px; border: none; background: none; font-weight: 500; color: #6b7280; border-bottom: 2px solid transparent;">
+                Subcategorias Gerenciais
+            </button>
+        </div>
+    </div>
+
+    <!-- Tab Content: Contábeis -->
+    <div id="tab-contabeis" class="tab-content active">
+        <div class="section-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+            <h2 style="font-size: 18px; font-weight: 600; color: #374151; margin: 0;">Subcategorias Contábeis</h2>
+            <button type="button" class="btn btn-primary" onclick="openAddSubcategoryModal('contabil')">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width: 16px; height: 16px; margin-right: 6px;">
+                    <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
+                </svg>
+                Nova Subcategoria Contábil
+            </button>
+        </div>
+
+        <!-- Filtros -->
+        <div class="filters-section" style="background: #f9fafb; padding: 16px; border-radius: 8px; margin-bottom: 20px;">
+            <div style="display: grid; grid-template-columns: 1fr 1fr auto; gap: 16px; align-items: end;">
+                <div>
+                    <label for="filter-categoria-pai-contabil" class="form-label">Categoria Pai</label>
+                    <select id="filter-categoria-pai-contabil" class="form-select">
+                        <option value="">Todas as Categorias</option>
+                    </select>
+                </div>
+                <div>
+                    <button type="button" class="btn btn-secondary" onclick="clearFilters('contabil')">Limpar</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tabela de Subcategorias Contábeis -->
+        <div class="advanced-table-container">
+            <div class="advanced-table-wrapper">
+                <table id="table-subcategorias-contabeis" class="advanced-table data-table">
+                    <thead>
+                        <tr>
+                            <th class="checkbox-cell">
+                                <input type="checkbox" id="select-all-contabeis" data-testid="checkbox-select-all-contabeis">
+                            </th>
+                            <th data-field="nome" class="sortable-header priority-high">Nome</th>
+                            <th data-field="categoria_pai_nome" class="sortable-header priority-high">Categoria Pai</th>
+                            <th data-field="tipo" class="sortable-header priority-medium">Tipo</th>
+                            <th data-field="ativo" class="sortable-header priority-medium">Ativo</th>
+                            <th data-field="descricao" class="sortable-header priority-low">Descrição</th>
+                            <th class="actions-cell">Ações</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tbody-subcategorias-contabeis">
+                        <tr class="loading">
+                            <td colspan="7">Carregando subcategorias...</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Tab Content: Gerenciais -->
+    <div id="tab-gerenciais" class="tab-content" style="display: none;">
+        <div class="section-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+            <h2 style="font-size: 18px; font-weight: 600; color: #374151; margin: 0;">Subcategorias Gerenciais</h2>
+            <button type="button" class="btn btn-primary" onclick="openAddSubcategoryModal('gerencial')">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width: 16px; height: 16px; margin-right: 6px;">
+                    <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
+                </svg>
+                Nova Subcategoria Gerencial
+            </button>
+        </div>
+
+        <!-- Filtros -->
+        <div class="filters-section" style="background: #f9fafb; padding: 16px; border-radius: 8px; margin-bottom: 20px;">
+            <div style="display: grid; grid-template-columns: 1fr 1fr auto; gap: 16px; align-items: end;">
+                <div>
+                    <label for="filter-categoria-pai-gerencial" class="form-label">Categoria Pai</label>
+                    <select id="filter-categoria-pai-gerencial" class="form-select">
+                        <option value="">Todas as Categorias</option>
+                    </select>
+                </div>
+                <div>
+                    <button type="button" class="btn btn-secondary" onclick="clearFilters('gerencial')">Limpar</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tabela de Subcategorias Gerenciais -->
+        <div class="advanced-table-container">
+            <div class="advanced-table-wrapper">
+                <table id="table-subcategorias-gerenciais" class="advanced-table data-table">
+                    <thead>
+                        <tr>
+                            <th class="checkbox-cell">
+                                <input type="checkbox" id="select-all-gerenciais" data-testid="checkbox-select-all-gerenciais">
+                            </th>
+                            <th data-field="nome" class="sortable-header priority-high">Nome</th>
+                            <th data-field="categoria_pai_nome" class="sortable-header priority-high">Categoria Pai</th>
+                            <th data-field="tipo" class="sortable-header priority-medium">Tipo</th>
+                            <th data-field="ativo" class="sortable-header priority-medium">Ativo</th>
+                            <th data-field="descricao" class="sortable-header priority-low">Descrição</th>
+                            <th class="actions-cell">Ações</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tbody-subcategorias-gerenciais">
+                        <tr class="loading">
+                            <td colspan="7">Carregando subcategorias...</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Ações em Lote -->
+    <div class="bulk-actions" style="margin-top: 20px; display: none;">
+        <button type="button" class="btn btn-danger" onclick="deleteSelectedSubcategories()">
+            Excluir Selecionadas
+        </button>
+    </div>
+</div>
+
+<!-- Modal para Criar/Editar Subcategoria -->
+<div id="subcategory-modal" class="modal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(0, 0, 0, 0.5); z-index: 1000; align-items: center; justify-content: center;">
+    <div class="modal-content" style="background: white; border-radius: 8px; max-width: 600px; width: 90%; max-height: 80vh; overflow-y: auto; position: relative;">
+        <div class="modal-header" style="padding: 20px 24px 0; border-bottom: 1px solid #e5e7eb; display: flex; justify-content: space-between; align-items: center; margin-bottom: 0;">
+            <h3 id="modal-title" style="margin: 0; font-size: 18px; font-weight: 600; color: #374151;">Nova Subcategoria</h3>
+            <button type="button" class="modal-close" onclick="closeSubcategoryModal()" style="background: none; border: none; font-size: 24px; cursor: pointer; color: #6b7280; padding: 0; width: 30px; height: 30px; display: flex; align-items: center; justify-content: center;">×</button>
+        </div>
+        <form id="subcategory-form" onsubmit="return window.gerenciarSubcategoriasController ? window.gerenciarSubcategoriasController.handleFormSubmit(event) : false;">
+            <div class="modal-body" style="padding: 24px;">
+                <input type="hidden" id="subcategory-id">
+                
+                <div class="form-field" style="margin-bottom: 20px;">
+                    <label for="subcategory-type" class="form-label required" style="display: block; margin-bottom: 6px; font-weight: 600; color: #374151; font-size: 14px;">Tipo *</label>
+                    <select id="subcategory-type" name="tipo" class="form-select" required style="width: 100%; padding: 12px; border: 1px solid #d1d5db; border-radius: 6px; background-color: white; font-size: 14px; color: #374151; min-height: 44px;">
+                        <option value="">Selecione o tipo...</option>
+                        <option value="contabil">Contábil</option>
+                        <option value="gerencial">Gerencial</option>
+                    </select>
+                </div>
+                
+                <div class="form-field" style="margin-bottom: 20px;">
+                    <label for="categoria-pai" class="form-label required" style="display: block; margin-bottom: 6px; font-weight: 600; color: #374151; font-size: 14px;">Categoria Pai *</label>
+                    <select id="categoria-pai" name="pai_id" class="form-select" required style="width: 100%; padding: 12px; border: 1px solid #d1d5db; border-radius: 6px; background-color: white; font-size: 14px; color: #374151; min-height: 44px;">
+                        <option value="">Selecione o tipo primeiro...</option>
+                    </select>
+                </div>
+                
+                <div class="form-field" style="margin-bottom: 20px;">
+                    <label for="subcategory-nome" class="form-label required" style="display: block; margin-bottom: 6px; font-weight: 600; color: #374151; font-size: 14px;">Nome *</label>
+                    <input type="text" id="subcategory-nome" name="nome" class="form-input" required style="width: 100%; padding: 12px; border: 1px solid #d1d5db; border-radius: 6px; background-color: white; font-size: 14px; color: #374151; min-height: 44px;">
+                </div>
+                
+                
+                <div class="form-field" style="margin-bottom: 20px;">
+                    <label for="subcategory-descricao" class="form-label" style="display: block; margin-bottom: 6px; font-weight: 600; color: #374151; font-size: 14px;">Descrição</label>
+                    <textarea id="subcategory-descricao" name="descricao" class="form-textarea" rows="3" style="width: 100%; padding: 12px; border: 1px solid #d1d5db; border-radius: 6px; background-color: white; font-size: 14px; color: #374151; resize: vertical;"></textarea>
+                </div>
+                
+                <div class="form-field checkbox" style="margin-bottom: 20px; display: flex; align-items: center; gap: 8px;">
+                    <input type="checkbox" id="subcategory-ativo" name="ativo" checked style="width: auto; margin: 0;">
+                    <label for="subcategory-ativo" style="margin: 0; font-weight: 600; color: #374151; font-size: 14px;">Ativo</label>
+                </div>
+            </div>
+            <div class="modal-footer" style="padding: 16px 24px; border-top: 1px solid #e5e7eb; display: flex; justify-content: flex-end; gap: 12px; background-color: #f9fafb;">
+                <button type="button" class="btn btn-secondary" onclick="closeSubcategoryModal()" style="padding: 10px 20px; border-radius: 6px; font-weight: 500; cursor: pointer; border: none; font-size: 14px; background-color: #6b7280; color: white;">Cancelar</button>
+                <button type="submit" class="btn btn-primary" style="padding: 10px 20px; border-radius: 6px; font-weight: 500; cursor: pointer; border: none; font-size: 14px; background-color: #3b82f6; color: white;">Salvar</button>
+            </div>
+        </form>
+    </div>
+</div></div>
+
+{% block scripts %}
+<script src="/static/js/gerenciar_subcategorias.js"></script>
+<style>
+.form-select {
+    width: 100% !important;
+    padding: 12px !important;
+    border: 1px solid #d1d5db !important;
+    border-radius: 6px !important;
+    background-color: white !important;
+    font-size: 14px !important;
+    color: #374151 !important;
+    appearance: menulist !important;
+    -webkit-appearance: menulist !important;
+    -moz-appearance: menulist !important;
+    min-height: 44px !important;
+}
+
+.form-select:focus {
+    outline: none !important;
+    border-color: #3b82f6 !important;
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1) !important;
+}
+
+.form-input {
+    width: 100% !important;
+    padding: 12px !important;
+    border: 1px solid #d1d5db !important;
+    border-radius: 6px !important;
+    background-color: white !important;
+    font-size: 14px !important;
+    color: #374151 !important;
+    min-height: 44px !important;
+}
+
+.form-input:focus {
+    outline: none !important;
+    border-color: #3b82f6 !important;
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1) !important;
+}
+
+.form-textarea {
+    width: 100% !important;
+    padding: 12px !important;
+    border: 1px solid #d1d5db !important;
+    border-radius: 6px !important;
+    background-color: white !important;
+    font-size: 14px !important;
+    color: #374151 !important;
+    resize: vertical !important;
+}
+
+.form-textarea:focus {
+    outline: none !important;
+    border-color: #3b82f6 !important;
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1) !important;
+}
+
+.form-field {
+    margin-bottom: 20px !important;
+    display: flex !important;
+    flex-direction: column !important;
+}
+
+.form-field.checkbox {
+    flex-direction: row !important;
+    align-items: center !important;
+    gap: 8px !important;
+}
+
+.form-field.checkbox input[type="checkbox"] {
+    width: auto !important;
+    margin: 0 !important;
+}
+
+.form-label {
+    display: block !important;
+    margin-bottom: 6px !important;
+    font-weight: 600 !important;
+    color: #374151 !important;
+    font-size: 14px !important;
+}
+
+.form-label.required::after,
+.form-label:contains("*")::after {
+    content: '' !important;
+    color: #ef4444 !important;
+}
+
+.modal-body {
+    padding: 24px !important;
+    max-height: 70vh !important;
+    overflow-y: auto !important;
+}
+
+.modal-footer {
+    padding: 16px 24px !important;
+    border-top: 1px solid #e5e7eb !important;
+    display: flex !important;
+    justify-content: flex-end !important;
+    gap: 12px !important;
+    background-color: #f9fafb !important;
+}
+
+.btn {
+    padding: 10px 20px !important;
+    border-radius: 6px !important;
+    font-weight: 500 !important;
+    cursor: pointer !important;
+    border: none !important;
+    font-size: 14px !important;
+}
+
+.btn-primary {
+    background-color: #3b82f6 !important;
+    color: white !important;
+}
+
+.btn-primary:hover {
+    background-color: #2563eb !important;
+}
+
+.btn-secondary {
+    background-color: #6b7280 !important;
+    color: white !important;
+}
+
+.btn-secondary:hover {
+    background-color: #4b5563 !important;
+}
+</style>
+<script>
+    // Configurar para listagem de subcategorias
+    window.entityType = 'subcategorias';
+    window.entityConfig = {
+        title: '📂 Gerenciar Subcategorias',
+        singular_name: 'Subcategoria',
+        table_fields: [
+            {'name': 'nome', 'label': 'Nome', 'type': 'text'},
+            {'name': 'codigo', 'label': 'Código', 'type': 'text'},
+            {'name': 'tipo', 'label': 'Tipo', 'type': 'text'},
+            {'name': 'categoria_pai', 'label': 'Categoria Pai', 'type': 'text'},
+            {'name': 'ativo', 'label': 'Ativo', 'type': 'boolean'}
+        ]
+    };
+</script>
+{% endblock %}
+{% endblock %}

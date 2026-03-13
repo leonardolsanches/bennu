@@ -1,0 +1,163 @@
+
+{% extends "base.html" %}
+
+{% block title %}Editar Despesa Planejada - Bennu Finance{% endblock %}
+
+{% block content %}
+<div class="page-container" style="max-width: 1200px; margin: 0 auto; padding: 24px;">
+    <div class="page-header" style="margin-bottom: 24px;">
+        <div style="display: flex; align-items: center; justify-content: space-between;">
+            <div style="display: flex; align-items: center; gap: 12px;">
+                <div class="icon-circle" style="background-color: #dc2626;">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" style="width: 16px; height: 16px;">
+                        <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-9"/>
+                        <path d="m9 15 3-3 3 3"/>
+                        <path d="M21 3l-6 6"/>
+                    </svg>
+                </div>
+                <h1 style="font-size: 24px; font-weight: bold; color: #374151; margin: 0;">Editar Despesa Planejada</h1>
+            </div>
+            <button type="button" class="btn-link" onclick="window.history.back()">← Voltar</button>
+        </div>
+    </div>
+
+    <form id="editar-planejamento-despesa-form">
+        <input type="hidden" id="linha-id" value="{{ linha_id }}">
+        
+        <section class="form-section">
+            <div class="section-header-left">
+                <div class="section-icon-left">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width: 20px; height: 20px;">
+                        <path d="M19 7l-.867 12.142A2 2 0 0 1 16.138 21H7.862a2 2 0 0 1-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 0 0-1-1h-4a1 1 0 0 0-1 1v3M4 7h16"/>
+                    </svg>
+                </div>
+                <h2 class="section-title-left">Dados da Despesa</h2>
+            </div>
+            
+            <div class="form-grid grid-2">
+                <div class="form-field">
+                    <label for="descricao" class="form-label">Descrição</label>
+                    <input type="text" id="descricao" name="descricao" class="form-input">
+                </div>
+                <div class="form-field">
+                    <label for="valor_previsto" class="form-label">Valor Previsto</label>
+                    <input type="number" id="valor_previsto" name="valor_previsto" class="form-input" step="0.01">
+                </div>
+            </div>
+
+            <h3 style="margin-top: 20px; margin-bottom: 12px; font-size: 14px; font-weight: 600; color: #374151;">Classificação da Despesa</h3>
+            <div class="form-grid grid-2">
+                <div class="form-field">
+                    <label for="categoria_gerencial" class="form-label required">Categoria</label>
+                    <select id="categoria_gerencial" name="categoria_gerencial_id" class="form-select" required>
+                        <option value="">Selecione...</option>
+                    </select>
+                </div>
+                <div class="form-field">
+                    <label for="subcategoria_gerencial" class="form-label required">Subcategoria</label>
+                    <select id="subcategoria_gerencial" name="subcategoria_gerencial_id" class="form-select" required>
+                        <option value="">Selecione...</option>
+                    </select>
+                </div>
+            </div>
+        </section>
+
+        <div class="form-actions">
+            <button type="button" class="btn btn-secondary" onclick="window.history.back()">Cancelar</button>
+            <button type="submit" class="btn btn-primary">Salvar Alterações</button>
+        </div>
+    </form>
+</div>
+
+<script>
+let linhaId = {{ linha_id }};
+
+document.addEventListener('DOMContentLoaded', async function() {
+    await carregarDados();
+    await carregarLinha();
+    
+    document.getElementById('editar-planejamento-despesa-form').addEventListener('submit', salvarAlteracoes);
+});
+
+async function carregarDados() {
+    const catGerResp = await fetch('/api/categorias-gerenciais');
+    const catGer = await catGerResp.json();
+    popularSelect('categoria_gerencial', catGer, 'id', 'nome');
+    
+    // Carregar subcategorias gerenciais quando categoria for selecionada
+    document.getElementById('categoria_gerencial').addEventListener('change', async (e) => {
+        const categoriaId = e.target.value;
+        const subcategoriaSelect = document.getElementById('subcategoria_gerencial');
+        subcategoriaSelect.innerHTML = '<option value="">Selecione...</option>';
+        
+        if (categoriaId) {
+            const subcatResp = await fetch(`/api/categorias-gerenciais?pai_id=${categoriaId}`);
+            const subcategorias = await subcatResp.json();
+            popularSelect('subcategoria_gerencial', subcategorias, 'id', 'nome', false);
+        }
+    });
+}
+
+async function carregarLinha() {
+    try {
+        const response = await fetch(`/api/planejamento/linhas/${linhaId}`);
+        if (!response.ok) throw new Error('Erro ao carregar linha');
+        
+        const linha = await response.json();
+        
+        document.getElementById('categoria_gerencial').value = linha.categoria_gerencial_id || '';
+        document.getElementById('descricao').value = linha.descricao || '';
+        document.getElementById('valor_previsto').value = linha.valor_previsto || '';
+        
+        // Carregar subcategorias se houver categoria gerencial
+        if (linha.categoria_gerencial_id) {
+            const subcatResp = await fetch(`/api/categorias-gerenciais?pai_id=${linha.categoria_gerencial_id}`);
+            const subcategorias = await subcatResp.json();
+            popularSelect('subcategoria_gerencial', subcategorias, 'id', 'nome', false);
+            document.getElementById('subcategoria_gerencial').value = linha.subcategoria_gerencial_id || '';
+        }
+    } catch (error) {
+        console.error('Erro ao carregar linha:', error);
+        alert('Erro ao carregar dados: ' + error.message);
+    }
+}
+
+async function salvarAlteracoes(e) {
+    e.preventDefault();
+    
+    const data = {
+        descricao: document.getElementById('descricao').value,
+        valor_previsto: parseFloat(document.getElementById('valor_previsto').value),
+        categoria_gerencial_id: document.getElementById('categoria_gerencial').value ? parseInt(document.getElementById('categoria_gerencial').value) : null,
+        subcategoria_gerencial_id: document.getElementById('subcategoria_gerencial').value ? parseInt(document.getElementById('subcategoria_gerencial').value) : null
+    };
+    
+    try {
+        const response = await fetch(`/api/planejamento/linhas/${linhaId}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(data)
+        });
+        
+        if (!response.ok) throw new Error('Erro ao salvar');
+        
+        alert('Despesa planejada atualizada com sucesso!');
+        window.history.back();
+    } catch (error) {
+        console.error('Erro ao salvar:', error);
+        alert('Erro ao salvar: ' + error.message);
+    }
+}
+
+function popularSelect(selectId, data, valueKey, textKey) {
+    const select = document.getElementById(selectId);
+    select.innerHTML = '<option value="">Selecione...</option>';
+    data.forEach(item => {
+        const option = document.createElement('option');
+        option.value = item[valueKey];
+        option.textContent = item[textKey];
+        select.appendChild(option);
+    });
+}
+</script>
+{% endblock %}

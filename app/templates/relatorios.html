@@ -1,0 +1,176 @@
+{% extends "base.html" %}
+
+{% block title %}Relatórios - Bennu Finance{% endblock %}
+
+{% block content %}
+<style>
+    /* Report cards 90% compact */
+    .reports-compact .report-card { padding: 10px 14px; }
+    .reports-compact .report-icon { width: 32px; height: 32px; }
+    .reports-compact .report-icon svg { width: 16px; height: 16px; }
+    .reports-compact .report-card-header h3 { font-size: 0.8rem; }
+    .reports-compact .report-card-header p { font-size: 0.68rem; }
+    .reports-compact .report-btn { padding: 5px 10px; font-size: 0.72rem; }
+</style>
+<div class="page-container" style="max-width: 1400px; margin: 0 auto; padding: 8px 20px;">
+    <div class="page-header" style="margin-bottom: 10px;">
+        <div style="display: flex; align-items: center; gap: 8px;">
+            <div class="icon-circle" style="background-color: #3b82f6; display: flex; align-items: center; justify-content: center; width: 24px; height: 24px;">
+                <svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" style="width: 12px; height: 12px;">
+                    <path d="M3 3v18h18"/>
+                    <path d="M18.7 8l-5.1 5.2-2.8-2.7L7 14.3"/>
+                </svg>
+            </div>
+            <h1 style="font-size: 15px; font-weight: bold; color: #374151; margin: 0;">Relatórios</h1>
+        </div>
+    </div>
+
+    <!-- Cards de Relatórios - Grid 3 colunas, compacto -->
+    <div class="reports-grid reports-compact" style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px;">
+
+        <!-- Cash Flow - Fluxo de Caixa -->
+        <div class="report-card" data-testid="card-cashflow">
+            <div class="report-card-header">
+                <div class="report-icon" style="background: linear-gradient(135deg, #f59e0b, #d97706);">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" style="width: 24px; height: 24px;">
+                        <path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>
+                    </svg>
+                </div>
+                <div>
+                    <h3>Cash Flow</h3>
+                    <p>Fluxo de caixa por atividades: operacional, investimento e financiamento</p>
+                </div>
+            </div>
+            <button class="report-btn" onclick="window.location.href='/relatorios/cashflow'" data-testid="button-acessar-cashflow">
+                Acessar
+            </button>
+        </div>
+
+        <!-- P&L Contábil -->
+        <div class="report-card" data-testid="card-pl-contabil">
+            <div class="report-card-header">
+                <div class="report-icon" style="background: linear-gradient(135deg, #06b6d4, #0891b2);">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" style="width: 24px; height: 24px;">
+                        <path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/>
+                        <rect x="8" y="2" width="8" height="4" rx="1" ry="1"/>
+                    </svg>
+                </div>
+                <div>
+                    <h3>P&L Contábil</h3>
+                    <p>Receitas, custos e despesas, resultado líquido por período</p>
+                </div>
+            </div>
+            <button class="report-btn" onclick="acessarRelatorio('pl-contabil')" data-testid="button-acessar-pl-contabil">
+                Acessar
+            </button>
+        </div>
+
+        <!-- P&L Consolidado -->
+        <div class="report-card" data-testid="card-pl-consolidado">
+            <div class="report-card-header">
+                <div class="report-icon" style="background: linear-gradient(135deg, #10b981, #059669);">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" style="width: 24px; height: 24px;">
+                        <path d="M18 20V10M12 20V4M6 20v-6"/>
+                    </svg>
+                </div>
+                <div>
+                    <h3>P&L Consolidado</h3>
+                    <p>Análise consolidada por empresa</p>
+                </div>
+            </div>
+            <button class="report-btn" onclick="acessarRelatorio('pl-consolidado')" data-testid="button-acessar-pl-consolidado">
+                Acessar
+            </button>
+        </div>
+
+        <!-- Cash Control - Extrato Bancário -->
+        <div class="report-card" data-testid="card-cash-control">
+            <div class="report-card-header">
+                <div class="report-icon" style="background: linear-gradient(135deg, #8b5cf6, #6d28d9);">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" style="width: 24px; height: 24px;">
+                        <rect x="2" y="5" width="20" height="14" rx="2"/>
+                        <path d="M2 10h20"/>
+                        <path d="M6 15h4"/>
+                        <path d="M14 15h4"/>
+                    </svg>
+                </div>
+                <div>
+                    <h3>Cash Control</h3>
+                    <p>Extrato bancário real - movimentações efetivadas</p>
+                </div>
+            </div>
+            <button class="report-btn" onclick="acessarRelatorio('cash-control')" data-testid="button-acessar-cash-control">
+                Acessar
+            </button>
+        </div>
+
+        <!-- Contas a Pagar -->
+        <div class="report-card" data-testid="card-contas-a-pagar">
+            <div class="report-card-header">
+                <div class="report-icon" style="background: linear-gradient(135deg, #f97316, #ea580c);">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" style="width: 24px; height: 24px;">
+                        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                        <polyline points="14,2 14,8 20,8"/>
+                        <line x1="12" y1="18" x2="12" y2="12"/>
+                        <line x1="9" y1="15" x2="15" y2="15"/>
+                    </svg>
+                </div>
+                <div>
+                    <h3>Contas a Pagar</h3>
+                    <p>Controle de obrigações financeiras por fornecedor</p>
+                </div>
+            </div>
+            <button class="report-btn" onclick="acessarRelatorio('contas-a-pagar')" data-testid="button-acessar-contas-a-pagar">
+                Acessar
+            </button>
+        </div>
+
+        <!-- Retenção na Fonte -->
+        <div class="report-card" data-testid="card-retencao-fonte">
+            <div class="report-card-header">
+                <div class="report-icon" style="background: linear-gradient(135deg, #ef4444, #dc2626);">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" style="width: 24px; height: 24px;">
+                        <path d="M9 14l6-6"/>
+                        <circle cx="9.5" cy="14.5" r="2.5"/>
+                        <circle cx="14.5" cy="9.5" r="2.5"/>
+                    </svg>
+                </div>
+                <div>
+                    <h3>Retenção na Fonte</h3>
+                    <p>Impostos de terceiros retidos a recolher</p>
+                </div>
+            </div>
+            <button class="report-btn" onclick="acessarRelatorio('retencao-fonte')" data-testid="button-acessar-retencao-fonte">
+                Acessar
+            </button>
+        </div>
+
+        <!-- Contas a Receber -->
+        <div class="report-card" data-testid="card-contas-a-receber">
+            <div class="report-card-header">
+                <div class="report-icon" style="background: linear-gradient(135deg, #059669, #047857);">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" style="width: 24px; height: 24px;">
+                        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                        <polyline points="14,2 14,8 20,8"/>
+                        <line x1="12" y1="12" x2="12" y2="18"/>
+                        <line x1="9" y1="15" x2="15" y2="15"/>
+                    </svg>
+                </div>
+                <div>
+                    <h3>Contas a Receber</h3>
+                    <p>Controle de recebimentos por cliente</p>
+                </div>
+            </div>
+            <button class="report-btn" onclick="acessarRelatorio('contas-a-receber')" data-testid="button-acessar-contas-a-receber">
+                Acessar
+            </button>
+        </div>
+
+
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="/static/js/relatorios.js"></script>
+{% endblock %}

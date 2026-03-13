@@ -1,0 +1,277 @@
+{% extends "base.html" %}
+
+{% block title %}Painel Administrativo - Bennu Finance{% endblock %}
+
+{% block content %}
+<div class="container" style="max-width: 1400px; margin: 0 auto; padding: 20px;">
+    <div style="margin-bottom: 30px;">
+        <h1>Painel Administrativo</h1>
+        <p style="color: #6b7280;">Monitoramento de uso e atividade do sistema</p>
+    </div>
+
+    <!-- Período de Análise -->
+    <div style="background: white; padding: 20px; border-radius: 8px; margin-bottom: 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
+        <label style="font-weight: 600; margin-bottom: 10px; display: block;">Período de Análise:</label>
+        <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+            <button class="btn btn-sm" onclick="carregarDados('24h')" id="btn-24h" data-testid="button-periodo-24h">Últimas 24h</button>
+            <button class="btn btn-sm btn-primary" onclick="carregarDados('7d')" id="btn-7d" data-testid="button-periodo-7d">Últimos 7 dias</button>
+            <button class="btn btn-sm" onclick="carregarDados('30d')" id="btn-30d" data-testid="button-periodo-30d">Últimos 30 dias</button>
+            <button class="btn btn-sm" onclick="carregarDados('90d')" id="btn-90d" data-testid="button-periodo-90d">Últimos 90 dias</button>
+        </div>
+    </div>
+
+    <!-- Cards de Métricas -->
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 20px; margin-bottom: 30px;">
+        <div class="metric-card" data-testid="card-acessos">
+            <div class="metric-icon" style="background: #dbeafe;">
+                <i class="fas fa-sign-in-alt" style="color: #3b82f6;"></i>
+            </div>
+            <div>
+                <div class="metric-label">Total de Acessos</div>
+                <div class="metric-value" id="total-acessos">-</div>
+            </div>
+        </div>
+
+        <div class="metric-card" data-testid="card-usuarios">
+            <div class="metric-icon" style="background: #dcfce7;">
+                <i class="fas fa-users" style="color: #10b981;"></i>
+            </div>
+            <div>
+                <div class="metric-label">Usuários Únicos</div>
+                <div class="metric-value" id="usuarios-unicos">-</div>
+            </div>
+        </div>
+
+        <div class="metric-card" data-testid="card-acoes">
+            <div class="metric-icon" style="background: #fef3c7;">
+                <i class="fas fa-tasks" style="color: #f59e0b;"></i>
+            </div>
+            <div>
+                <div class="metric-label">Total de Ações</div>
+                <div class="metric-value" id="total-acoes">-</div>
+            </div>
+        </div>
+
+        <div class="metric-card" data-testid="card-sessoes">
+            <div class="metric-icon" style="background: #fce7f3;">
+                <i class="fas fa-clock" style="color: #ec4899;"></i>
+            </div>
+            <div>
+                <div class="metric-label">Sessões Ativas</div>
+                <div class="metric-value" id="sessoes-ativas">-</div>
+            </div>
+        </div>
+
+        <div class="metric-card" data-testid="card-tempo-medio">
+            <div class="metric-icon" style="background: #e0e7ff;">
+                <i class="fas fa-hourglass-half" style="color: #6366f1;"></i>
+            </div>
+            <div>
+                <div class="metric-label">Tempo Médio de Sessão</div>
+                <div class="metric-value" id="tempo-medio">-</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Tabs de Conteúdo -->
+    <div style="background: white; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); overflow: hidden;">
+        <!-- Abas -->
+        <div style="display: flex; border-bottom: 1px solid #e5e7eb; background: #f9fafb;">
+            <button class="tab-button active" onclick="mudarTab('visao-geral')" data-testid="tab-visao-geral">
+                <i class="fas fa-chart-line"></i> Visão Geral
+            </button>
+            <button class="tab-button" onclick="mudarTab('usuarios')" data-testid="tab-usuarios">
+                <i class="fas fa-users"></i> Usuários
+            </button>
+            <button class="tab-button" onclick="mudarTab('logs-acoes')" data-testid="tab-logs-acoes">
+                <i class="fas fa-list"></i> Logs de Ações
+            </button>
+            <button class="tab-button" onclick="mudarTab('sessoes-ativas')" data-testid="tab-sessoes">
+                <i class="fas fa-user-clock"></i> Sessões Ativas
+            </button>
+        </div>
+
+        <!-- Conteúdo das Abas -->
+        <div style="padding: 20px;">
+            <!-- Tab: Visão Geral -->
+            <div id="tab-visao-geral" class="tab-content active">
+                <h3 style="margin-bottom: 20px;">Gráficos e Estatísticas</h3>
+                
+                <!-- Gráfico de Atividade Diária -->
+                <div style="margin-bottom: 30px;">
+                    <h4 style="margin-bottom: 15px;">Atividade Diária</h4>
+                    <div id="grafico-atividade" style="height: 300px; background: #f9fafb; border-radius: 6px; padding: 20px; display: flex; align-items: center; justify-content: center;">
+                        <p style="color: #9ca3af;">Carregando...</p>
+                    </div>
+                </div>
+
+                <!-- Tabelas de Ações e Entidades -->
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+                    <div>
+                        <h4 style="margin-bottom: 15px;">Ações por Tipo</h4>
+                        <table class="data-table" id="table-acoes-tipo" data-testid="table-acoes-tipo">
+                            <thead>
+                                <tr>
+                                    <th>Tipo de Ação</th>
+                                    <th style="text-align: right;">Total</th>
+                                </tr>
+                            </thead>
+                            <tbody id="tbody-acoes-tipo">
+                                <tr><td colspan="2" style="text-align: center;">Carregando...</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <div>
+                        <h4 style="margin-bottom: 15px;">Entidades Mais Modificadas</h4>
+                        <table class="data-table" id="table-entidades" data-testid="table-entidades">
+                            <thead>
+                                <tr>
+                                    <th>Entidade</th>
+                                    <th style="text-align: right;">Total</th>
+                                </tr>
+                            </thead>
+                            <tbody id="tbody-entidades">
+                                <tr><td colspan="2" style="text-align: center;">Carregando...</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Tab: Usuários -->
+            <div id="tab-usuarios" class="tab-content" style="display: none;">
+                <h3 style="margin-bottom: 20px;">Atividade dos Usuários</h3>
+                <table class="data-table" id="table-usuarios" data-testid="table-usuarios">
+                    <thead>
+                        <tr>
+                            <th>Usuário</th>
+                            <th>Email</th>
+                            <th style="text-align: center;">Total Ações</th>
+                            <th style="text-align: center;">Sessões</th>
+                            <th>Último Acesso</th>
+                            <th>Última Atividade</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tbody-usuarios">
+                        <tr><td colspan="6" style="text-align: center; padding: 40px;">Carregando...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Tab: Logs de Ações -->
+            <div id="tab-logs-acoes" class="tab-content" style="display: none;">
+                <h3 style="margin-bottom: 20px;">Histórico de Ações</h3>
+                <table class="data-table" id="table-logs-acoes" data-testid="table-logs-acoes">
+                    <thead>
+                        <tr>
+                            <th>Data/Hora</th>
+                            <th>Usuário</th>
+                            <th>Ação</th>
+                            <th>Entidade</th>
+                            <th>Descrição</th>
+                            <th>IP</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tbody-logs-acoes">
+                        <tr><td colspan="6" style="text-align: center; padding: 40px;">Carregando...</td></tr>
+                    </tbody>
+                </table>
+                <div style="margin-top: 15px; text-align: center;">
+                    <button class="btn btn-sm" onclick="carregarLogsAcoes(paginaAtual - 1)" id="btn-prev" data-testid="button-prev-page">Anterior</button>
+                    <span id="info-paginacao" style="margin: 0 15px;">-</span>
+                    <button class="btn btn-sm" onclick="carregarLogsAcoes(paginaAtual + 1)" id="btn-next" data-testid="button-next-page">Próxima</button>
+                </div>
+            </div>
+
+            <!-- Tab: Sessões Ativas -->
+            <div id="tab-sessoes-ativas" class="tab-content" style="display: none;">
+                <h3 style="margin-bottom: 20px;">Sessões Ativas no Momento</h3>
+                <table class="data-table" id="table-sessoes" data-testid="table-sessoes">
+                    <thead>
+                        <tr>
+                            <th>Usuário</th>
+                            <th>Email</th>
+                            <th>Início</th>
+                            <th>Última Atividade</th>
+                            <th style="text-align: center;">Duração (min)</th>
+                            <th>IP</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tbody-sessoes">
+                        <tr><td colspan="6" style="text-align: center; padding: 40px;">Carregando...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.metric-card {
+    background: white;
+    padding: 20px;
+    border-radius: 8px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    display: flex;
+    gap: 15px;
+    align-items: center;
+}
+
+.metric-icon {
+    width: 48px;
+    height: 48px;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 20px;
+}
+
+.metric-label {
+    font-size: 14px;
+    color: #6b7280;
+    margin-bottom: 5px;
+}
+
+.metric-value {
+    font-size: 28px;
+    font-weight: 700;
+    color: #111827;
+}
+
+.tab-button {
+    padding: 15px 25px;
+    border: none;
+    background: transparent;
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: 500;
+    color: #6b7280;
+    border-bottom: 2px solid transparent;
+    transition: all 0.2s;
+}
+
+.tab-button:hover {
+    color: #111827;
+    background: rgba(0,0,0,0.02);
+}
+
+.tab-button.active {
+    color: #3b82f6;
+    border-bottom-color: #3b82f6;
+    background: white;
+}
+
+.tab-content {
+    animation: fadeIn 0.3s;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+</style>
+
+<script src="/static/js/admin.js?v=1"></script>
+{% endblock %}

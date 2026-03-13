@@ -1,0 +1,81 @@
+
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login - Bennu Finance</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body class="login-page">
+    <div class="login-container">
+        <div class="login-card">
+            <div class="login-content">
+                <div class="login-logo">
+                    <img src="/static/images/logo.png" alt="Bennu Finance" class="logo-image">
+                </div>
+                
+                <h1>Bennu Finance</h1>
+                <p>Sistema de Gestão Financeira</p>
+                
+                <div id="login-error" style="display: none; background: #fef2f2; border: 1px solid #fca5a5; color: #dc2626; padding: 10px 14px; border-radius: 8px; margin-bottom: 16px; font-size: 14px; text-align: center;">
+                    Usuário ou senha incorretos
+                </div>
+                <form id="loginForm" class="login-form" method="POST" action="/api/login">
+                    <div class="form-group">
+                        <label for="email">Usuário</label>
+                        <input type="text" id="email" name="email" required class="form-input">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="senha">Senha</label>
+                        <input type="password" id="senha" name="senha" required class="form-input">
+                    </div>
+                    
+                    <button type="submit" class="btn btn-primary btn-full">
+                        <i class="fas fa-sign-in-alt"></i>
+                        Entrar
+                    </button>
+                </form>
+                
+                <div class="login-footer">
+                    <i class="fas fa-lock"></i>
+                    Acesso seguro com criptografia SSL
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        if (window.location.search.includes('error=1')) {
+            var errEl = document.getElementById('login-error');
+            if (errEl) errEl.style.display = 'block';
+        }
+
+        document.getElementById('loginForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            var email = document.getElementById('email').value;
+            var senha = document.getElementById('senha').value;
+            var errDiv = document.getElementById('login-error');
+            if (errDiv) errDiv.style.display = 'none';
+            
+            fetch('/api/login', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                credentials: 'include',
+                body: JSON.stringify({ email: email, senha: senha })
+            }).then(function(response) {
+                if (response.ok) {
+                    window.location.href = '/';
+                } else {
+                    if (errDiv) errDiv.style.display = 'block';
+                }
+            }).catch(function() {
+                if (errDiv) errDiv.style.display = 'block';
+                errDiv.textContent = 'Erro de conexão com o servidor';
+            });
+        });
+    </script>
+</body>
+</html>

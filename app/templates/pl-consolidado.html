@@ -1,0 +1,159 @@
+{% extends "base.html" %}
+
+{% block title %}P&L Consolidado - Bennu Finance{% endblock %}
+
+{% block content %}
+<style>
+    .plc-compact .form-select { font-size: 0.6rem; padding: 2px 6px; height: 22px; }
+    .plc-compact .pl-consolidado-table tbody tr { height: 18px !important; }
+    .plc-compact .pl-consolidado-table tbody td { padding: 1px 4px !important; font-size: 0.6rem !important; line-height: 1 !important; }
+    .plc-compact .pl-consolidado-table thead th { padding: 2px 4px !important; font-size: 0.6rem !important; }
+</style>
+<div class="page-container plc-compact" style="width: 100vw; max-width: none; margin: 0; padding: 6px 12px; margin-left: calc(-50vw + 50%);">
+    <!-- Header com Filtros inline -->
+    <div style="display: flex; align-items: center; justify-content: space-between; gap: 6px; margin-bottom: 4px; flex-wrap: wrap;">
+        <div style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
+            <div class="icon-circle" style="background-color: #8b5cf6; width: 24px; height: 24px; display: flex; align-items: center; justify-content: center;">
+                <svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" style="width: 12px; height: 12px;">
+                    <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
+                    <polyline points="9,22 9,12 15,12 15,22"/>
+                </svg>
+            </div>
+            <h1 style="font-size: 1rem; font-weight: bold; color: #374151; margin: 0;">P&L Consolidado</h1>
+            <!-- Filtros inline -->
+            <select id="ano-filter" class="form-select" onchange="carregarDadosPLConsolidado()" data-testid="select-ano" style="width: 60px;"></select>
+            <select id="mes-corte-filter" class="form-select" onchange="carregarDadosPLConsolidado()" data-testid="select-mes-corte" style="width: 70px;">
+                <option value="">Corte</option>
+                <option value="1">Jan</option><option value="2">Fev</option><option value="3">Mar</option>
+                <option value="4">Abr</option><option value="5">Mai</option><option value="6">Jun</option>
+                <option value="7">Jul</option><option value="8">Ago</option><option value="9">Set</option>
+                <option value="10">Out</option><option value="11">Nov</option><option value="12">Dez</option>
+            </select>
+            <select id="empresa-filter" class="form-select" onchange="carregarDadosPLConsolidado()" data-testid="select-empresa" style="width: 90px;">
+                <option value="">Empresas</option>
+            </select>
+            <select id="cliente-filter" class="form-select" onchange="carregarDadosPLConsolidado()" data-testid="select-cliente" style="width: 80px;">
+                <option value="">Clientes</option>
+            </select>
+            <select id="projeto-filter" class="form-select" onchange="carregarDadosPLConsolidado()" data-testid="select-projeto" style="width: 80px;">
+                <option value="">Projetos</option>
+            </select>
+            <select id="produto-servico-filter" class="form-select" onchange="carregarDadosPLConsolidado()" data-testid="select-produto-servico" style="width: 80px;">
+                <option value="">Prod/Serv</option>
+            </select>
+            <button class="btn btn-outline" onclick="resetFilters()" data-testid="button-limpar-filtros" style="padding: 2px 6px; font-size: 0.6rem; height: 22px;">Limpar</button>
+        </div>
+        <div style="display: flex; gap: 6px;">
+            <button type="button" class="btn btn-secondary" onclick="window.history.back()" data-testid="button-voltar" style="padding: 4px 10px; font-size: 0.65rem;">← Voltar</button>
+            <button type="button" class="btn btn-primary" onclick="exportarPLConsolidado('xlsx')" data-testid="button-exportar" style="padding: 4px 10px; font-size: 0.65rem; background: #217346; border-color: #217346; display: flex; align-items: center; gap: 3px;">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8l-6-6zm-1 9h-2v2h2v2h-2v2H9v-2H7v-2h2v-2H7V9h2V7h2v2h2v2z"/></svg>
+                Excel
+            </button>
+        </div>
+    </div>
+
+    <!-- Tabela P&L Consolidado com Header Fixo -->
+    <div class="pl-consolidado-table-container" style="background: white; border-radius: 6px; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,0.1); position: relative;">
+        <div class="table-header" style="background: #f8fafc; border-bottom: 1px solid #e5e7eb; padding: 4px 8px; position: sticky; top: 0; z-index: 200;">
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+                <div style="display: flex; align-items: center; gap: 6px;">
+                    <h3 style="margin: 0; font-size: 0.7rem; font-weight: 600; color: #374151;">Demonstração do Resultado Consolidado</h3>
+                    <span style="font-size: 0.6rem; color: #6b7280;" data-testid="periodo-informacao"><span id="periodo-atual">2025</span> - <span id="quarter-atual">Q1</span></span>
+                    <!-- Botões de navegação por quarter -->
+                    <button onclick="mudarQuarter(1)" id="btn-q1" class="quarter-btn active" style="padding: 2px 6px; font-size: 0.55rem;">Q1</button>
+                    <button onclick="mudarQuarter(2)" id="btn-q2" class="quarter-btn" style="padding: 2px 6px; font-size: 0.55rem;">Q2</button>
+                    <button onclick="mudarQuarter(3)" id="btn-q3" class="quarter-btn" style="padding: 2px 6px; font-size: 0.55rem;">Q3</button>
+                    <button onclick="mudarQuarter(4)" id="btn-q4" class="quarter-btn" style="padding: 2px 6px; font-size: 0.55rem;">Q4</button>
+                </div>
+            </div>
+        </div>
+
+        <div class="table-wrapper" style="overflow-x: auto; max-height: calc(100vh - 110px); overflow-y: auto; position: relative;" id="pl-consolidado-table-wrapper">
+            <table class="pl-consolidado-table" data-testid="tabela-pl-consolidado" style="font-size: 0.6rem; width: 100%;">
+                <thead style="position: sticky; top: 0; z-index: 150; background: #f1f5f9; box-shadow: 0 2px 4px rgba(0,0,0,0.1);" id="pl-consolidado-thead">
+                    <!-- Cabeçalho será gerado dinamicamente -->
+                </thead>
+                <tbody id="pl-consolidado-tbody" data-testid="pl-consolidado-dados">
+                    <tr>
+                        <td colspan="16" style="text-align: center; padding: 40px; color: #6b7280;">
+                            <div class="loading-state">
+                                <i class="fas fa-spinner fa-spin" style="font-size: 24px; margin-bottom: 8px;"></i>
+                                <br>Carregando dados do P&L Consolidado...
+                            </div>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="/static/js/pl-consolidado.js"></script>
+<style>
+    .quarter-btn {
+        background-color: #f1f5f9;
+        border: 1px solid #cbd5e0;
+        color: #64748b;
+        padding: 6px 12px;
+        font-size: 12px;
+        font-weight: 600;
+        cursor: pointer;
+        border-radius: 6px;
+        transition: all 0.2s;
+    }
+    .quarter-btn:hover {
+        background-color: #e2e8f0;
+        color: #475569;
+    }
+    .quarter-btn.active {
+        background-color: #3b82f6;
+        color: white;
+        border-color: #3b82f6;
+    }
+    .pl-consolidado-table th, .pl-consolidado-table td {
+        white-space: nowrap;
+        border-left: 1px solid #f1f5f9;
+    }
+    .pl-consolidado-table th:first-child, .pl-consolidado-table td:first-child {
+        border-left: none;
+    }
+    .drilldown-btn {
+        background: none;
+        border: none;
+        color: #6b7280;
+        cursor: pointer;
+        font-size: 12px;
+        margin-right: 4px;
+        padding: 2px 4px;
+        border-radius: 2px;
+        transition: background-color 0.2s;
+    }
+    .drilldown-btn:hover {
+        background-color: #f3f4f6;
+        color: #374151;
+    }
+    .drilldown-item {
+        display: none;
+    }
+    .drilldown-item.expanded {
+        display: table-row;
+    }
+    .concept-level-1 {
+        padding-left: 0px;
+        font-weight: 600;
+    }
+    .concept-level-2 {
+        padding-left: 20px;
+        font-weight: 500;
+    }
+    .concept-level-3 {
+        padding-left: 40px;
+        font-weight: 400;
+    }
+</style>
+<script>
+    
+</script>
+{% endblock %}

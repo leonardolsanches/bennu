@@ -1,0 +1,177 @@
+{% extends "base.html" %}
+
+{% block title %}{{ config.title }} - Bennu Finance{% endblock %}
+
+{% block content %}
+<div class="listagem-container">
+    <div class="listagem-header">
+        <h1>{{ config.title }}</h1>
+        <div class="header-actions">
+            <button class="btn" id="export-excel-btn" onclick="exportarCadastroExcel()" style="background: #217346; color: white; display: flex; align-items: center; gap: 4px;" title="Exportar para Excel">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
+                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8l-6-6zm-1 2l5 5h-5V4zM8.5 13.5L7 17h1.2l.6-1.5h1.6l.6 1.5h1.2l-1.5-3.5h-1.2zm.9 2.3l.5-1.3.5 1.3h-1zm4.1-2.3L12 17h1.2l.6-1.5h1.6l.6 1.5h1.2l-1.5-3.5h-1.2zm.9 2.3l.5-1.3.5 1.3h-1z"/>
+                </svg>
+                Excel
+            </button>
+            <button class="btn btn-danger" id="delete-selected" onclick="deleteSelected()" disabled>
+                <i class="fas fa-trash"></i> Excluir Selecionados
+            </button>
+            <button class="btn btn-primary" onclick="openModal('{{ entity_type }}')">
+                <i class="fas fa-plus"></i> Novo {{ config.singular_name }}
+            </button>
+        </div>
+    </div>
+
+    <div class="listagem-filters">
+        <div class="filter-actions">
+            <button class="btn btn-outline" onclick="selectAll()" type="button">
+                <i class="fas fa-check-square"></i> Selecionar Todos
+            </button>
+            <button class="btn btn-outline" onclick="deselectAll()" type="button">
+                <i class="fas fa-square"></i> Deselecionar Todos
+            </button>
+        </div>
+    </div>
+
+    <div class="table-container" id="loading-container">
+        <div class="loading-spinner">
+            <i class="fas fa-spinner fa-spin"></i> Carregando...
+        </div>
+    </div>
+
+    <div class="advanced-table-container" id="table-container" style="display: none;">
+        <div class="table-wrapper" style="overflow-x: auto;">
+            <table class="advanced-table listagem-table" id="data-table">
+                <thead>
+                    <tr>
+                        <th class="checkbox-cell" style="min-width: 50px; position: sticky; left: 0; background: #f8f9fa; z-index: 10;">
+                            <input type="checkbox" id="select-all-checkbox" onchange="toggleSelectAll()">
+                        </th>
+                        {% for field in config.table_fields %}
+                        <th data-field="{{ field.name }}" class="sortable-header priority-{{ field.priority | default('medium') }}">
+                            {{ field.label }}
+                        </th>
+                        {% endfor %}
+                        {% if entity_type == 'empresas' %}
+                        <th style="min-width: 300px;">Impostos Cadastrados</th>
+                        {% endif %}
+                        <th class="actions-cell">Ações</th>
+                    </tr>
+                </thead>
+                <tbody id="table-body">
+                    <!-- Dados serão carregados via JavaScript -->
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <div class="pagination-container">
+        <div class="pagination-info">
+            <span id="pagination-info">Mostrando 0 de 0 registros</span>
+        </div>
+        <div class="pagination-controls">
+            <button class="btn btn-outline" onclick="previousPage()" id="prev-page" disabled>
+                <i class="fas fa-chevron-left"></i> Anterior
+            </button>
+            <span id="page-info">Página 1 de 1</span>
+            <button class="btn btn-outline" onclick="nextPage()" id="next-page" disabled>
+                Próxima <i class="fas fa-chevron-right"></i>
+            </button>
+        </div>
+    </div>
+</div>
+
+<script>
+// Configuração da página de listagem
+window.entityType = '{{ entity_type }}';
+window.entityConfig = {{ config_json | safe }};
+
+// Estado da paginação movido para window.listagem para evitar conflitos
+// Variáveis e funções movidas para listagem.js para evitar conflitos
+
+// Funções movidas para listagem.js - usar apenas as implementações de lá
+
+function selectAll() {
+    const checkboxes = document.querySelectorAll('.item-checkbox');
+    checkboxes.forEach(cb => cb.checked = true);
+    updateSelectAllCheckbox();
+    updateDeleteButton();
+}
+
+function deselectAll() {
+    const checkboxes = document.querySelectorAll('.item-checkbox');
+    checkboxes.forEach(cb => cb.checked = false);
+    updateSelectAllCheckbox();
+    updateDeleteButton();
+}
+
+function toggleSelectAll() {
+    const selectAllCheckbox = document.getElementById('select-all-checkbox');
+    const checkboxes = document.querySelectorAll('.item-checkbox');
+    checkboxes.forEach(cb => cb.checked = selectAllCheckbox.checked);
+    updateDeleteButton();
+}
+
+function updateSelectAllCheckbox() {
+    const checkboxes = document.querySelectorAll('.item-checkbox');
+    const checkedBoxes = document.querySelectorAll('.item-checkbox:checked');
+    const selectAllCheckbox = document.getElementById('select-all-checkbox');
+
+    if (checkedBoxes.length === 0) {
+        selectAllCheckbox.indeterminate = false;
+        selectAllCheckbox.checked = false;
+    } else if (checkedBoxes.length === checkboxes.length) {
+        selectAllCheckbox.indeterminate = false;
+        selectAllCheckbox.checked = true;
+    } else {
+        selectAllCheckbox.indeterminate = true;
+    }
+}
+
+function updateDeleteButton() {
+    const checkedBoxes = document.querySelectorAll('.item-checkbox:checked');
+    const deleteButton = document.getElementById('delete-selected');
+    deleteButton.disabled = checkedBoxes.length === 0;
+    updateSelectAllCheckbox();
+}
+
+// editItem function moved to listagem.js to avoid duplication
+
+async function deleteItem(id) {
+    if (confirm('Tem certeza que deseja excluir este item?')) {
+        try {
+            const response = await fetch(`/api/${entityType}/${id}`, {
+                method: 'DELETE'
+            });
+
+            if (response.ok) {
+                showSuccess('Item excluído com sucesso!');
+                loadData(); // Recarregar dados
+            } else {
+                throw new Error('Erro ao excluir item');
+            }
+        } catch (error) {
+            console.error('Erro ao excluir item:', error);
+            showError('Erro ao excluir item: ' + error.message);
+        }
+    }
+}
+
+// deleteSelected() function moved to listagem.js for better error handling
+
+function showSuccess(message) {
+    // Implementar notificação de sucesso
+    alert(message); // Temporário
+}
+
+function showError(message) {
+    // Implementar notificação de erro
+    alert(message); // Temporário
+}
+</script>
+{% endblock %}
+
+{% block scripts %}
+<script src="/static/js/modals.js?v={{ cache_bust }}"></script>
+<script src="/static/js/listagem.js?v={{ cache_bust }}"></script>
+{% endblock %}

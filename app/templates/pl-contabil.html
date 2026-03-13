@@ -1,0 +1,220 @@
+{% extends "base.html" %}
+
+{% block title %}P&L Contábil - Bennu Finance{% endblock %}
+
+{% block content %}
+<style>
+    .pl-compact .form-select { font-size: 0.6rem; padding: 2px 6px; height: 22px; }
+    .pl-compact table tbody tr { height: 18px !important; }
+    .pl-compact table tbody td { padding: 1px 4px !important; font-size: 0.65rem !important; line-height: 1 !important; }
+    .pl-compact table thead th { padding: 2px 4px !important; font-size: 0.65rem !important; }
+</style>
+<div class="container-fluid pl-compact" style="padding: 6px 12px;">
+    <div class="row">
+        <div class="col-12">
+            <!-- Header com Filtros inline -->
+            <div style="display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 6px; flex-wrap: wrap;">
+                <div style="display: flex; align-items: center; gap: 8px;">
+                    <div class="icon-circle" style="background-color: #06b6d4; width: 24px; height: 24px; display: flex; align-items: center; justify-content: center;">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" style="width: 12px; height: 12px;">
+                            <path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/>
+                            <rect x="8" y="2" width="8" height="4" rx="1" ry="1"/>
+                        </svg>
+                    </div>
+                    <h1 style="font-size: 1rem; font-weight: bold; color: #374151; margin: 0;">P&L Contábil</h1>
+                    <!-- Filtros inline -->
+                    <select id="ano-filter" class="form-select" onchange="carregarDadosPL()" data-testid="select-ano" style="width: 65px;"></select>
+                    <select id="empresa-filter" class="form-select" onchange="carregarDadosPL()" data-testid="select-empresa" style="width: 120px;">
+                        <option value="">Empresas</option>
+                    </select>
+                    <select id="fornecedor-filter" class="form-select" onchange="carregarDadosPL()" data-testid="select-fornecedor" style="width: 120px;">
+                        <option value="">Fornecedores</option>
+                    </select>
+                    <select id="centro-custo-filter" class="form-select" onchange="carregarDadosPL()" data-testid="select-centro-custo" style="width: 110px;">
+                        <option value="">C.Custo</option>
+                    </select>
+                    <button class="btn btn-outline" onclick="resetFilters()" data-testid="button-limpar-filtros" style="padding: 2px 6px; font-size: 0.6rem; height: 22px;">
+                        Limpar
+                    </button>
+                </div>
+                <div style="display: flex; gap: 6px;">
+                    <button type="button" class="btn btn-secondary" onclick="window.history.back()" data-testid="button-voltar" style="padding: 4px 10px; font-size: 0.65rem;">
+                        ← Voltar
+                    </button>
+                    <button type="button" class="btn btn-primary" onclick="exportarPL('xlsx')" data-testid="button-exportar" style="padding: 4px 10px; font-size: 0.65rem; background: #217346; border-color: #217346; display: flex; align-items: center; gap: 3px;">
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8l-6-6zm-1 9h-2v2h2v2h-2v2H9v-2H7v-2h2v-2H7V9h2V7h2v2h2v2z"/></svg>
+                        Excel
+                    </button>
+                </div>
+            </div>
+
+    <!-- Tabela P&L Contábil -->
+            <div class="card" style="margin-top: 4px;">
+                <div class="card-header" style="padding: 4px 8px;">
+                    <div style="display: flex; justify-content: space-between; align-items: center;">
+                        <div style="display: flex; align-items: center; gap: 6px;">
+                            <h6 style="margin: 0; font-size: 0.7rem;">Demonstração do Resultado</h6>
+                            <span style="font-size: 0.6rem; color: #6b7280;" data-testid="periodo-informacao"><span id="periodo-atual">2025</span></span>
+                            <button type="button" class="btn btn-outline-secondary" onclick="adjustColumnWidth(-50)" title="Diminuir largura" style="padding: 1px 4px; font-size: 0.55rem;">↔-</button>
+                            <button type="button" class="btn btn-outline-secondary" onclick="adjustColumnWidth(50)" title="Aumentar largura" style="padding: 1px 4px; font-size: 0.55rem;">↔+</button>
+                            <button type="button" class="btn btn-outline-secondary" onclick="scrollToTableStart()" title="Início" style="padding: 1px 4px; font-size: 0.55rem;">◀</button>
+                            <button type="button" class="btn btn-outline-secondary" onclick="scrollToTableEnd()" title="Fim" style="padding: 1px 4px; font-size: 0.55rem;">▶</button>
+                        </div>
+                    </div>
+                </div>
+                <div class="card-body p-0">
+                    <div class="table-responsive" style="width: 100%; overflow-x: auto; max-height: calc(100vh - 140px); overflow-y: auto;">
+                        <table class="table table-sm mb-0" id="pl-table" data-testid="tabela-pl" style="font-size: 0.65rem; width: 100%; min-width: 1200px;">
+                            <thead class="table-light" style="position: sticky; top: 0; z-index: 100; background: white;">
+                                <tr style="font-size: 0.65rem;">
+                                    <th id="first-column-header" style="min-width: 250px; width: 250px; position: sticky; left: 0; background: var(--bs-light); z-index: 101; border-right: 2px solid #dee2e6; padding: 2px 4px !important;">DESCRIÇÃO</th>
+                                    <th class="text-end" style="min-width: 80px; background: var(--bs-light);">Jan</th>
+                                    <th class="text-end" style="min-width: 80px; background: var(--bs-light);">Fev</th>
+                                    <th class="text-end" style="min-width: 80px; background: var(--bs-light);">Mar</th>
+                                    <th class="text-end" style="min-width: 80px; background: var(--bs-light);">Abr</th>
+                                    <th class="text-end" style="min-width: 80px; background: var(--bs-light);">Mai</th>
+                                    <th class="text-end" style="min-width: 80px; background: var(--bs-light);">Jun</th>
+                                    <th class="text-end" style="min-width: 80px; background: var(--bs-light);">Jul</th>
+                                    <th class="text-end" style="min-width: 80px; background: var(--bs-light);">Ago</th>
+                                    <th class="text-end" style="min-width: 80px; background: var(--bs-light);">Set</th>
+                                    <th class="text-end" style="min-width: 80px; background: var(--bs-light);">Out</th>
+                                    <th class="text-end" style="min-width: 80px; background: var(--bs-light);">Nov</th>
+                                    <th class="text-end" style="min-width: 80px; background: var(--bs-light);">Dez</th>
+                                    <th class="text-end bg-light fw-bold" style="min-width: 100px; background: var(--bs-light);">TOTAL</th>
+                                </tr>
+                            </thead>
+                            <tbody id="pl-tbody">
+                                <tr>
+                                    <td colspan="14" class="text-center py-3">
+                                        <div class="d-flex align-items-center justify-content-center">
+                                            <div class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></div>
+                                            <span class="small">Carregando dados do P&L Contábil...</span>
+                                        </div>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="/static/js/pl-contabil.js"></script>
+<script>
+// Inicializar página
+document.addEventListener('DOMContentLoaded', function() {
+    console.log('🚀 Inicializando P&L Contábil...');
+    
+    // Carregar filtros e dados
+    Promise.all([
+        carregarEmpresas(),
+        carregarFornecedores(),
+        carregarCentrosCusto(),
+        carregarDadosPL()
+    ]).then(() => {
+        console.log('✅ P&L Contábil carregado com sucesso!');
+    }).catch(error => {
+        console.error('❌ Erro ao carregar P&L Contábil:', error);
+        showErrorMessage('Erro ao carregar dados do P&L Contábil');
+    });
+    
+    // Inicializar largura da primeira coluna após um breve delay
+    setTimeout(() => {
+        updateFirstColumnWidth();
+    }, 500);
+});
+
+// Variável global para controlar largura da primeira coluna
+let firstColumnWidth = parseInt(localStorage.getItem('pl-first-column-width')) || 300;
+
+// Funções de navegação da tabela
+function scrollToTableStart() {
+    const tableWrapper = document.querySelector('.table-responsive');
+    if (tableWrapper) {
+        tableWrapper.scrollLeft = 0;
+    }
+}
+
+function scrollToTableEnd() {
+    const tableWrapper = document.querySelector('.table-responsive');
+    if (tableWrapper) {
+        tableWrapper.scrollLeft = tableWrapper.scrollWidth;
+    }
+}
+
+// Função para ajustar largura da primeira coluna
+function adjustColumnWidth(delta) {
+    firstColumnWidth += delta;
+    
+    // Limites mínimo e máximo
+    if (firstColumnWidth < 200) firstColumnWidth = 200;
+    if (firstColumnWidth > 600) firstColumnWidth = 600;
+    
+    // Salvar no localStorage
+    localStorage.setItem('pl-first-column-width', firstColumnWidth.toString());
+    
+    // Aplicar nova largura
+    updateFirstColumnWidth();
+    
+    console.log(`📏 Largura da primeira coluna ajustada para: ${firstColumnWidth}px`);
+}
+
+// Função para atualizar largura da primeira coluna
+function updateFirstColumnWidth() {
+    // Atualizar cabeçalho
+    const headerCells = document.querySelectorAll('#pl-table thead th:first-child');
+    headerCells.forEach(cell => {
+        cell.style.minWidth = firstColumnWidth + 'px';
+        cell.style.width = firstColumnWidth + 'px';
+        cell.style.maxWidth = firstColumnWidth + 'px';
+    });
+    
+    // Atualizar células do corpo
+    const bodyCells = document.querySelectorAll('#pl-table tbody td:first-child');
+    bodyCells.forEach(cell => {
+        cell.style.minWidth = firstColumnWidth + 'px';
+        cell.style.width = firstColumnWidth + 'px';
+        cell.style.maxWidth = firstColumnWidth + 'px';
+    });
+}
+</script>
+{% endblock %}
+
+{% block scripts %}
+<style>
+    .scroll-btn {
+        background-color: #e2e8f0;
+        border: 1px solid #cbd5e0;
+        color: #475569;
+        padding: 4px 8px;
+        font-size: 10px;
+        cursor: pointer;
+        border-radius: 4px;
+        transition: background-color 0.2s, color 0.2s;
+    }
+    .scroll-btn:hover {
+        background-color: #cbd5e0;
+        color: #374151;
+    }
+    .pl-table th, .pl-table td {
+        white-space: nowrap;
+    }
+</style>
+<script>
+    function scrollToTableStartPL() {
+        const tableWrapper = document.getElementById('pl-table-wrapper');
+        if (tableWrapper) {
+            tableWrapper.scrollLeft = 0;
+        }
+    }
+
+    function scrollToTableEndPL() {
+        const tableWrapper = document.getElementById('pl-table-wrapper');
+        if (tableWrapper) {
+            tableWrapper.scrollLeft = tableWrapper.scrollWidth;
+        }
+    }
+</script>
+{% endblock %}

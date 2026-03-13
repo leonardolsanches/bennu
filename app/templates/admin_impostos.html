@@ -1,0 +1,144 @@
+{% extends "base.html" %}
+
+{% block title %}Gestão de Impostos - Bennu Finance{% endblock %}
+
+{% block content %}
+<div class="container" style="max-width: 1600px; margin: 0 auto; padding: 20px;">
+    <div style="margin-bottom: 30px; display: flex; justify-content: space-between; align-items: center;">
+        <div>
+            <h1>Gestão de Impostos</h1>
+            <p style="color: #6b7280;">Configuração de alíquotas por empresa e produto/serviço</p>
+        </div>
+        <button class="btn btn-primary" onclick="novoImposto()" data-testid="button-novo-imposto">
+            <i class="fas fa-plus"></i> Novo Imposto
+        </button>
+    </div>
+
+    <!-- Filtros -->
+    <div style="background: white; padding: 20px; border-radius: 8px; margin-bottom: 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px;">
+            <div>
+                <label class="form-label">Empresa</label>
+                <select id="filtro-empresa" class="form-control" onchange="carregarImpostos()" data-testid="select-filtro-empresa">
+                    <option value="">Todas</option>
+                </select>
+            </div>
+            <div>
+                <label class="form-label">Tipo de Imposto</label>
+                <select id="filtro-tipo" class="form-control" onchange="carregarImpostos()" data-testid="select-filtro-tipo">
+                    <option value="">Todos</option>
+                    <option value="federal">Federal</option>
+                    <option value="estadual">Estadual</option>
+                    <option value="municipal">Municipal</option>
+                </select>
+            </div>
+            <div>
+                <label class="form-label">Status</label>
+                <select id="filtro-ativo" class="form-control" onchange="carregarImpostos()" data-testid="select-filtro-ativo">
+                    <option value="">Todos</option>
+                    <option value="true" selected>Ativos</option>
+                    <option value="false">Inativos</option>
+                </select>
+            </div>
+        </div>
+    </div>
+
+    <!-- Tabela de Impostos -->
+    <div style="background: white; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); overflow: hidden;">
+        <div style="overflow-x: auto;">
+            <table class="table" id="tabela-impostos" data-testid="table-impostos">
+                <thead>
+                    <tr>
+                        <th><input type="checkbox" id="select-all" onchange="selecionarTodos(this)" data-testid="checkbox-select-all"></th>
+                        <th>Nome</th>
+                        <th>Empresa</th>
+                        <th>Produto/Serviço</th>
+                        <th>Alíquota (%)</th>
+                        <th>Tipo</th>
+                        <th>Status</th>
+                        <th>Ações</th>
+                    </tr>
+                </thead>
+                <tbody id="lista-impostos">
+                    <tr>
+                        <td colspan="8" style="text-align: center; padding: 40px;">
+                            <i class="fas fa-spinner fa-spin"></i> Carregando...
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+        
+        <!-- Ações em Massa -->
+        <div id="acoes-massa" style="display: none; padding: 15px; border-top: 1px solid #e5e7eb; background: #f9fafb;">
+            <span id="count-selecionados" style="margin-right: 15px; font-weight: 600;">0 itens selecionados</span>
+            <button class="btn btn-sm btn-danger" onclick="excluirSelecionados()" data-testid="button-excluir-selecionados">
+                <i class="fas fa-trash"></i> Excluir Selecionados
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- Modal de Edição/Criação -->
+<div id="modal-imposto" class="modal" style="display: none;">
+    <div class="modal-content" style="max-width: 600px;">
+        <div class="modal-header">
+            <h2 id="modal-title">Novo Imposto</h2>
+            <button class="close" onclick="fecharModal()" data-testid="button-fechar-modal">&times;</button>
+        </div>
+        <div class="modal-body">
+            <form id="form-imposto">
+                <input type="hidden" id="imposto-id">
+                
+                <div class="form-group">
+                    <label class="form-label required">Empresa</label>
+                    <select id="imposto-empresa" class="form-control" required data-testid="select-imposto-empresa">
+                        <option value="">Selecione...</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Produto/Serviço (Opcional)</label>
+                    <select id="imposto-produto" class="form-control" data-testid="select-imposto-produto">
+                        <option value="">Imposto geral da empresa</option>
+                    </select>
+                    <small class="form-text">Deixe em branco para aplicar a toda empresa</small>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label required">Nome</label>
+                    <input type="text" id="imposto-nome" class="form-control" placeholder="Ex: PIS sobre Faturamento" required data-testid="input-imposto-nome">
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label required">Alíquota (%)</label>
+                    <input type="number" id="imposto-valor" class="form-control" step="0.01" min="0" max="100" placeholder="Ex: 1.65" required data-testid="input-imposto-valor">
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Tipo</label>
+                    <select id="imposto-tipo" class="form-control" data-testid="select-imposto-tipo">
+                        <option value="">Selecione...</option>
+                        <option value="federal">Federal</option>
+                        <option value="estadual">Estadual</option>
+                        <option value="municipal">Municipal</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label style="display: flex; align-items: center; gap: 10px;">
+                        <input type="checkbox" id="imposto-ativo" checked data-testid="checkbox-imposto-ativo">
+                        <span>Ativo</span>
+                    </label>
+                </div>
+            </form>
+        </div>
+        <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" onclick="fecharModal()" data-testid="button-cancelar">Cancelar</button>
+            <button type="button" class="btn btn-primary" onclick="salvarImposto()" data-testid="button-salvar-imposto">Salvar</button>
+        </div>
+    </div>
+</div>
+
+<script src="/static/js/admin_impostos.js?v=2"></script>
+{% endblock %}

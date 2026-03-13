@@ -1,0 +1,341 @@
+{% extends "base.html" %}
+
+{% block title %}Desmembrar Transações - Bennu Finance{% endblock %}
+
+{% block content %}
+<style>
+    .desmembrar-compact { font-size: 11px; }
+    .desmembrar-compact .page-header { margin-bottom: 4px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 6px; }
+    .desmembrar-compact .page-title { font-size: 1rem; margin: 0; }
+    .desmembrar-compact .page-subtitle { font-size: 0.65rem; margin: 0; color: #6b7280; }
+    .desmembrar-compact .form-control { font-size: 0.6rem; padding: 2px 6px; height: 22px; }
+    .desmembrar-compact .btn { font-size: 0.6rem; padding: 2px 8px; }
+    .desmembrar-compact label { font-size: 0.55rem; margin-bottom: 1px; }
+    .desmembrar-compact .card { margin-bottom: 6px; }
+    .desmembrar-compact .card-header { padding: 4px 8px; }
+    .desmembrar-compact .card-header h3 { font-size: 0.7rem; margin: 0; }
+    .desmembrar-compact .card-body { padding: 6px 8px; }
+    .desmembrar-compact table tbody tr { height: 18px !important; }
+    .desmembrar-compact table tbody td { padding: 1px 4px !important; font-size: 0.6rem !important; line-height: 1 !important; vertical-align: middle !important; }
+    .desmembrar-compact table thead th { padding: 2px 4px !important; font-size: 0.6rem !important; }
+</style>
+<div class="page-container desmembrar-compact" style="padding: 6px 12px; max-width: 100%;">
+    <div class="page-header">
+        <div style="display: flex; align-items: center; gap: 12px;">
+            <div>
+                <h1 class="page-title">Desmembrar Transações</h1>
+                <p class="page-subtitle">Divida transações em múltiplos lançamentos</p>
+            </div>
+            <!-- Filtros inline ao lado do título -->
+            <div style="display: flex; gap: 4px; align-items: center; flex-wrap: wrap;">
+                <select id="filter-tipo" class="form-control" data-testid="select-filter-tipo" style="width: 70px;">
+                    <option value="">Tipo</option>
+                    <option value="receita">Receitas</option>
+                    <option value="despesa">Despesas</option>
+                </select>
+                <select id="filter-tipo-data" class="form-control" data-testid="select-filter-tipo-data" style="width: 90px;">
+                    <option value="competencia">Competência</option>
+                    <option value="lancamento">Lançamento</option>
+                </select>
+                <input type="month" id="filter-mes-ano" class="form-control" data-testid="input-filter-mes-ano" style="width: 110px;">
+                <input type="text" id="filter-busca" class="form-control" placeholder="Buscar..." data-testid="input-filter-busca" style="width: 120px;">
+                <button type="button" id="btn-filtrar" class="btn btn-primary" style="height: 22px;" data-testid="button-filtrar">
+                    <i class="fas fa-search"></i>
+                </button>
+            </div>
+        </div>
+        <button class="btn btn-outline" onclick="window.location.href='/'" data-testid="button-historico" style="height: 22px;">
+            <i class="fas fa-history"></i> Histórico
+        </button>
+    </div>
+
+    <div id="alert-container"></div>
+
+    <!-- Tabela de Transações -->
+    <div class="card" style="margin-top: 8px;">
+        <div class="card-header" style="display: flex; justify-content: space-between; align-items: center;">
+            <h3>Transações Disponíveis</h3>
+            <span id="pagination-info" style="font-size: 0.6rem; color: #6b7280;">10/página</span>
+        </div>
+        <div class="card-body" style="padding: 0;">
+            <div id="loading-state" class="loading-state" style="padding: 20px; text-align: center; color: #6b7280;">
+                <i class="fas fa-spinner fa-spin" style="font-size: 16px;"></i>
+                <p style="margin-top: 6px; font-size: 0.7rem;">Carregando...</p>
+            </div>
+            
+            <div id="transacoes-table-container" class="hidden">
+                <div class="advanced-table-wrapper">
+                    <table id="desmembramento-table" class="advanced-table" style="width: 100%; border-collapse: collapse;">
+                        <thead>
+                            <tr style="background: #f9fafb; border-bottom: 1px solid #e5e7eb;">
+                                <th style="padding: 6px 8px; text-align: center; font-weight: 600; font-size: 0.65rem; color: #374151; width: 60px;">Ação</th>
+                                <th data-field="status_desmembramento" style="padding: 6px 8px; text-align: left; font-weight: 600; font-size: 0.65rem; color: #374151;">Status</th>
+                                <th data-field="empresa" style="padding: 6px 8px; text-align: left; font-weight: 600; font-size: 0.65rem; color: #374151;">Empresa</th>
+                                <th data-field="data_lancamento" style="padding: 6px 8px; text-align: center; font-weight: 600; font-size: 0.65rem; color: #374151;">Lanç.</th>
+                                <th data-field="competencia" style="padding: 6px 8px; text-align: center; font-weight: 600; font-size: 0.65rem; color: #374151;">Comp.</th>
+                                <th data-field="tipo" style="padding: 6px 8px; text-align: left; font-weight: 600; font-size: 0.65rem; color: #374151;">Tipo</th>
+                                <th data-field="descricao" style="padding: 6px 8px; text-align: left; font-weight: 600; font-size: 0.65rem; color: #374151;">Descrição</th>
+                                <th data-field="cliente_fornecedor" style="padding: 6px 8px; text-align: left; font-weight: 600; font-size: 0.65rem; color: #374151;">Cli/Forn</th>
+                                <th data-field="valor" style="padding: 6px 8px; text-align: right; font-weight: 600; font-size: 0.65rem; color: #374151;">Valor</th>
+                                <th data-field="status" style="padding: 6px 8px; text-align: center; font-weight: 600; font-size: 0.65rem; color: #374151;">Status</th>
+                            </tr>
+                        </thead>
+                        <tbody id="transacoes-tbody">
+                        </tbody>
+                    </table>
+                </div>
+                
+                <div id="pagination-controls" class="pagination-controls" style="display: flex; justify-content: center; align-items: center; gap: 4px; padding: 6px; border-top: 1px solid #e5e7eb;">
+                </div>
+            </div>
+
+            <div id="empty-state" class="empty-state hidden" style="padding: 20px; text-align: center; color: #6b7280;">
+                <i class="fas fa-inbox" style="font-size: 24px; color: #d1d5db; margin-bottom: 8px;"></i>
+                <p style="font-size: 0.75rem; font-weight: 500; margin-bottom: 4px;">Nenhuma transação encontrada</p>
+                <p style="font-size: 0.65rem;">Ajuste os filtros</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Formulário de Desmembramento (hidden por padrão) -->
+    <div id="desmembramento-form" class="card hidden" style="margin-top: 8px;">
+        <div class="card-header" style="background: #f0fdf4; border-bottom: 1px solid #10b981;">
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+                <h3 style="color: #059669;"><i class="fas fa-cut"></i> Desmembrar Transação</h3>
+                <button type="button" class="btn btn-outline" onclick="cancelarDesmembramento()" data-testid="button-fechar-desmembramento">
+                    <i class="fas fa-times"></i> Fechar
+                </button>
+            </div>
+        </div>
+        <div class="card-body" style="padding: 10px;">
+            <!-- Info da Transação Selecionada -->
+            <div id="transacao-info" class="transacao-info" style="background: #f3f4f6; padding: 8px 12px; border-radius: 6px; margin-bottom: 10px;">
+                <div class="info-grid" style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px;">
+                    <div class="info-item">
+                        <span class="info-label" style="font-size: 0.6rem; color: #6b7280;">Descrição</span>
+                        <span class="info-value" id="info-descricao" style="font-weight: 600; color: #1f2937; font-size: 0.75rem;">-</span>
+                    </div>
+                    <div class="info-item">
+                        <span class="info-label" style="font-size: 0.6rem; color: #6b7280;">Valor</span>
+                        <span class="info-value" id="info-valor" style="font-weight: 600; color: #1f2937; font-size: 0.75rem;">-</span>
+                    </div>
+                    <div class="info-item">
+                        <span class="info-label" style="font-size: 0.6rem; color: #6b7280;">Tipo</span>
+                        <span class="info-value" id="info-tipo" style="font-weight: 600; color: #1f2937; font-size: 0.75rem;">-</span>
+                    </div>
+                    <div class="info-item">
+                        <span class="info-label" style="font-size: 0.6rem; color: #6b7280;">Competência</span>
+                        <span class="info-value" id="info-competencia" style="font-weight: 600; color: #1f2937; font-size: 0.75rem;">-</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Opções de Desmembramento -->
+            <div class="desmembramento-options" style="background: #f0f9ff; border: 1px solid #3b82f6; border-radius: 6px; padding: 10px; margin-bottom: 10px;">
+                <h4 style="color: #1e40af; margin-bottom: 8px; display: flex; align-items: center; gap: 6px; font-size: 0.75rem;">
+                    <i class="fas fa-magic"></i> Opções
+                </h4>
+                
+                <div style="display: flex; gap: 10px; align-items: end; flex-wrap: wrap;">
+                    <div class="form-group" style="margin-bottom: 0; min-width: 120px;">
+                        <label>Método</label>
+                        <select id="metodo-divisao" class="form-control" data-testid="select-metodo-divisao">
+                            <option value="manual">Manual</option>
+                            <option value="igual">Dividir Igualmente</option>
+                            <option value="parcelas">Dividir em N Parcelas</option>
+                        </select>
+                    </div>
+                    
+                    <div id="opcoes-parcelas" class="form-group" style="margin-bottom: 0; display: none;">
+                        <div style="display: flex; gap: 8px; align-items: end;">
+                            <div style="min-width: 80px;">
+                                <label>Nº Parcelas</label>
+                                <input type="number" id="num-parcelas" class="form-control" min="2" max="60" value="3" data-testid="input-num-parcelas">
+                            </div>
+                            <div style="min-width: 100px;">
+                                <label>Formato</label>
+                                <select id="formato-descricao" class="form-control" data-testid="select-formato-descricao">
+                                    <option value="parcela">Parcela X/N</option>
+                                    <option value="mes">Mês</option>
+                                    <option value="simples">Simples</option>
+                                </select>
+                            </div>
+                            <label style="display: flex; align-items: center; gap: 4px; cursor: pointer; white-space: nowrap;">
+                                <input type="checkbox" id="incrementar-mes" checked data-testid="checkbox-incrementar-mes">
+                                Incr. Mês
+                            </label>
+                        </div>
+                    </div>
+                    
+                    <button type="button" id="btn-aplicar-divisao" class="btn btn-primary" style="display: none;" data-testid="button-aplicar-divisao">
+                        <i class="fas fa-magic"></i> Aplicar
+                    </button>
+                </div>
+            </div>
+
+            <!-- Itens do Desmembramento -->
+            <h4 style="margin-bottom: 8px; font-size: 0.75rem;">Itens do Desmembramento</h4>
+            <div id="itens-container" class="itens-desmembramento"></div>
+
+            <button type="button" id="btn-add-item" class="btn btn-success" style="margin-top: 8px;" data-testid="button-add-item">
+                <i class="fas fa-plus"></i> Adicionar Item
+            </button>
+
+            <!-- Totalizador Compacto -->
+            <div class="totalizador" style="background: #eff6ff; border: 1px solid #3b82f6; border-radius: 6px; padding: 8px; margin-top: 10px; display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px;">
+                <div class="totalizador-item" style="text-align: center;">
+                    <div class="totalizador-label" style="font-size: 0.6rem; color: #6b7280; margin-bottom: 2px;">Valor Original</div>
+                    <div class="totalizador-valor" style="font-size: 0.9rem; font-weight: 700; color: #3b82f6;" id="total-origem">R$ 0,00</div>
+                </div>
+                <div class="totalizador-item" style="text-align: center;">
+                    <div class="totalizador-label" style="font-size: 0.6rem; color: #6b7280; margin-bottom: 2px;">Total Itens</div>
+                    <div class="totalizador-valor" style="font-size: 0.9rem; font-weight: 700; color: #10b981;" id="total-itens">R$ 0,00</div>
+                </div>
+                <div class="totalizador-item" style="text-align: center;">
+                    <div class="totalizador-label" style="font-size: 0.6rem; color: #6b7280; margin-bottom: 2px;">Diferença</div>
+                    <div class="totalizador-valor" style="font-size: 0.9rem; font-weight: 700; color: #ef4444;" id="total-diferenca">R$ 0,00</div>
+                </div>
+            </div>
+
+            <div class="form-group" style="margin-top: 10px;">
+                <label for="observacoes">Observações (opcional)</label>
+                <textarea id="observacoes" class="form-control" rows="2" placeholder="Observações..." data-testid="input-observacoes" style="font-size: 0.7rem;"></textarea>
+            </div>
+
+            <div class="form-actions" style="display: flex; gap: 8px; justify-content: center; margin-top: 12px; padding-top: 10px; border-top: 1px solid #e5e7eb;">
+                <button type="button" class="btn btn-secondary" onclick="cancelarDesmembramento()" data-testid="button-cancelar">
+                    <i class="fas fa-times"></i> Cancelar
+                </button>
+                <button type="button" id="btn-salvar" class="btn btn-primary" data-testid="button-salvar-desmembramento">
+                    <i class="fas fa-save"></i> Salvar
+                </button>
+            </div>
+        </div>
+    </div>
+
+</div>
+
+<style>
+    .item-desmembramento {
+        background: #f9fafb;
+        border: 1px solid #e5e7eb;
+        border-radius: 6px;
+        padding: 8px 10px;
+        margin-bottom: 6px;
+        position: relative;
+    }
+
+    .item-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 8px;
+    }
+
+    .item-number {
+        font-weight: 600;
+        color: #6366f1;
+        font-size: 0.7rem;
+    }
+
+    .btn-remove-item {
+        background: #ef4444;
+        color: white;
+        border: none;
+        padding: 3px 8px;
+        border-radius: 4px;
+        cursor: pointer;
+        font-size: 0.6rem;
+    }
+
+    .badge {
+        display: inline-block;
+        padding: 2px 6px;
+        border-radius: 8px;
+        font-size: 0.6rem;
+        font-weight: 600;
+        text-transform: uppercase;
+    }
+
+    .badge-receita {
+        background: #d1fae5;
+        color: #065f46;
+    }
+
+    .badge-despesa {
+        background: #fee2e2;
+        color: #991b1b;
+    }
+
+    .badge-planejado {
+        background: #dbeafe;
+        color: #1e40af;
+    }
+
+    .badge-nao-desmembrado {
+        background: #e5e7eb;
+        color: #374151;
+    }
+
+    .badge-pendente {
+        background: #fef3c7;
+        color: #92400e;
+    }
+
+    .badge-pago {
+        background: #d1fae5;
+        color: #065f46;
+    }
+
+    .badge-desmembrado {
+        background: #fef3c7;
+        color: #92400e;
+    }
+
+    .badge-filho-desmembramento {
+        background: #dbeafe;
+        color: #1e40af;
+    }
+
+    .data-table tbody tr {
+        border-bottom: 1px solid #e5e7eb;
+        transition: background-color 0.15s;
+    }
+
+    .data-table tbody tr:hover {
+        background: #f9fafb;
+    }
+
+    .data-table tbody td {
+        padding: 12px;
+        font-size: 14px;
+        color: #374151;
+    }
+
+    .hidden {
+        display: none !important;
+    }
+
+    .sort-indicator {
+        transition: opacity 0.2s;
+    }
+
+    table thead th:not(:first-child):not(:last-child):hover {
+        background: #e5e7eb;
+    }
+</style>
+
+<script>
+function cancelarDesmembramento() {
+    // Usar a função do manager para limpar corretamente
+    if (window.desmembramentoManager) {
+        window.desmembramentoManager.cancelarDesmembramento();
+    }
+}
+</script>
+{% endblock %}
+
+{% block scripts %}
+<script src="/static/js/advanced-tables.js"></script>
+<script src="/static/js/desmembrar.js"></script>
+{% endblock %}

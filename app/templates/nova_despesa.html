@@ -1,0 +1,413 @@
+{% extends "base.html" %}
+
+{% block title %}{{ 'Editar Despesa' if transacao_id else 'Nova Despesa' }} - Bennu Finance{% endblock %}
+
+{% block content %}
+<div class="page-container" style="max-width: 1400px; margin: 0 auto; padding: 10px 20px;">
+    <div class="page-header" style="margin-bottom: 10px;">
+        <div style="display: flex; align-items: center; justify-content: space-between;">
+            <div style="display: flex; align-items: center; gap: 8px;">
+                <div class="icon-circle" style="background-color: {{ '#dc2626' if transacao_id else '#6b7280' }}; display: flex; align-items: center; justify-content: center; width: 28px; height: 28px;">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" style="width: 14px; height: 14px;">
+                        {% if transacao_id %}
+                        <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-9"/>
+                        <path d="m9 15 3-3 3 3"/>
+                        <path d="M21 3l-6 6"/>
+                        {% else %}
+                        <circle cx="12" cy="12" r="10"/>
+                        <line x1="15" y1="9" x2="9" y2="15"/>
+                        <line x1="9" y1="9" x2="15" y2="15"/>
+                        {% endif %}
+                    </svg>
+                </div>
+                <h1 style="font-size: 1.1rem; font-weight: bold; color: #374151; margin: 0;">{{ 'Editar Despesa' if transacao_id else 'Nova Despesa' }}</h1>
+            </div>
+            <button type="button" class="btn-link" style="color: #6b7280; text-decoration: none; border: none; background: none; cursor: pointer; font-size: 0.8rem;" onclick="window.history.back()">
+                ← Voltar
+            </button>
+        </div>
+    </div>
+
+    <form id="nova-despesa-form" class="expense-form form-compact" autocomplete="off">
+        {% if transacao_id %}
+        <input type="hidden" id="transacao-id" name="id" value="{{ transacao_id }}">
+        {% endif %}
+        <!-- Flag Cash Control (Discreto no topo) -->
+        <div style="margin-bottom: 16px; padding: 8px 12px; background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px;">
+            <label class="toggle-switch" style="font-size: 12px; color: #6b7280;">
+                <input type="checkbox" id="exibir_no_cash_control" name="exibir_no_cash_control" checked disabled>
+                <span class="toggle-slider" style="transform: scale(0.8);"></span>
+                <span class="toggle-label" style="font-size: 12px;">Exibir no Cash Control (somente gerentes podem alterar)</span>
+            </label>
+        </div>
+
+        <!-- Seção 1: Dados Iniciais da Despesa -->
+        <section class="form-section">
+            <div class="section-header-left section-header-collapsible" onclick="toggleFormSection(this)" data-section="dados-iniciais">
+                <div style="display: flex; align-items: center; gap: 8px;">
+                    <div class="section-icon-left">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width: 20px; height: 20px;">
+                            <path d="M19 7l-.867 12.142A2 2 0 0 1 16.138 21H7.862a2 2 0 0 1-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 0 0-1-1h-4a1 1 0 0 0-1 1v3M4 7h16"/>
+                        </svg>
+                    </div>
+                    <h2 class="section-title-left">Dados Iniciais da Despesa</h2>
+                </div>
+                <span class="collapse-icon">▼</span>
+            </div>
+            <div class="section-content-collapsible">
+            <div class="form-grid grid-4">
+                <div class="form-field">
+                    <label for="ano" class="form-label required">Ano</label>
+                    <select id="ano" name="ano" class="form-select" required>
+                        <option value="">Selecione...</option>
+                    </select>
+                </div>
+                <div class="form-field">
+                    <label for="empresa" class="form-label required">Empresa</label>
+                    <div class="select-with-add">
+                        <select id="empresa" name="empresa_id" class="form-select" required>
+                            <option value="">Selecione...</option>
+                        </select>
+                        <button type="button" class="add-btn" onclick="openAddModal('empresa')" title="Adicionar nova empresa">+</button>
+                    </div>
+                </div>
+                <div class="form-field">
+                    <label for="cliente" class="form-label">Cliente</label>
+                    <div class="select-with-add">
+                        <select id="cliente" name="cliente_id" class="form-select">
+                            <option value="">Selecione...</option>
+                        </select>
+                        <button type="button" class="add-btn" onclick="openAddModal('cliente')" title="Adicionar novo cliente">+</button>
+                    </div>
+                </div>
+                <div class="form-field">
+                    <label for="fornecedor" class="form-label">Fornecedor</label>
+                    <div class="select-with-add">
+                        <select id="fornecedor" name="fornecedor_id" class="form-select">
+                            <option value="">Selecione...</option>
+                        </select>
+                        <button type="button" class="add-btn" onclick="openAddModal('fornecedor')" title="Adicionar novo fornecedor">+</button>
+                    </div>
+                </div>
+            </div>
+            </div>
+        </section>
+
+        <!-- Seção 2: Informações Financeiras -->
+        <section class="form-section">
+            <div class="section-header-left section-header-collapsible" onclick="toggleFormSection(this)" data-section="info-financeiras">
+                <div style="display: flex; align-items: center; gap: 8px;">
+                    <div class="section-icon-left">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width: 20px; height: 20px;">
+                            <line x1="12" y1="1" x2="12" y2="23"/>
+                            <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>
+                        </svg>
+                    </div>
+                    <h2 class="section-title-left">Informações Financeiras</h2>
+                </div>
+                <span class="collapse-icon">▼</span>
+            </div>
+            <div class="section-content-collapsible">
+            <div class="form-grid" style="display: grid; grid-template-columns: repeat(7, 1fr); gap: 12px;">
+                <div class="form-field">
+                    <label for="valor" class="form-label">Valor</label>
+                    <div class="currency-input">
+                        <span class="currency-symbol">R$</span>
+                        <input type="text" id="valor" name="valor" class="form-input currency" placeholder="0,00" autocomplete="off" inputmode="decimal">
+                    </div>
+                </div>
+                <div class="form-field">
+                    <label for="data_emissao" class="form-label">Emissão</label>
+                    <input type="date" id="data_emissao" name="data_emissao" class="form-input">
+                </div>
+                <div class="form-field">
+                    <label for="data_vencimento" class="form-label">Vencimento</label>
+                    <input type="date" id="data_vencimento" name="data_vencimento" class="form-input">
+                </div>
+                <div class="form-field">
+                    <label for="data_pagamento" class="form-label">Pagamento</label>
+                    <input type="date" id="data_pagamento" name="data_pagamento" class="form-input">
+                </div>
+                <div class="form-field">
+                    <label for="valor_pago" class="form-label">Vlr Pago</label>
+                    <div class="currency-input">
+                        <span class="currency-symbol">R$</span>
+                        <input type="text" id="valor_pago" name="valor_pago" class="form-input currency" placeholder="0,00" autocomplete="off" inputmode="decimal">
+                    </div>
+                </div>
+                <div class="form-field">
+                    <label for="competencia_contabil" class="form-label">Comp. Contábil</label>
+                    <input type="month" id="competencia_contabil" name="competencia_contabil" class="form-input">
+                </div>
+                <div class="form-field">
+                    <label for="competencia_gerencial" class="form-label">Comp. Gerencial</label>
+                    <input type="month" id="competencia_gerencial" name="competencia_gerencial" class="form-input">
+                </div>
+            </div>
+            <div class="form-grid grid-4">
+                <div class="form-field">
+                    <label for="status" class="form-label">Status</label>
+                    <select id="status" name="status" class="form-select">
+                        <option value="pendente">Pendente</option>
+                        <option value="pago">Pago</option>
+                        <option value="cancelado">Cancelado</option>
+                        <option value="vencido">Vencido</option>
+                    </select>
+                </div>
+                <div class="form-field">
+                    <label for="forma_pagamento" class="form-label">Forma Pagamento</label>
+                    <select id="forma_pagamento" name="forma_pagamento" class="form-select">
+                        <option value="">Selecione...</option>
+                        <option value="transferencia">Transferência</option>
+                        <option value="cartao">Cartão Crédito</option>
+                        <option value="debito">Cartão Débito</option>
+                        <option value="dinheiro">Dinheiro</option>
+                        <option value="pix">PIX</option>
+                        <option value="boleto">Boleto</option>
+                        <option value="outros">Cheque</option>
+                    </select>
+                </div>
+                <div class="form-field" style="grid-column: span 2;">
+                    <label for="descricao" class="form-label">Descrição</label>
+                    <input type="text" id="descricao" name="descricao" class="form-input" placeholder="Descrição detalhada da despesa...">
+                </div>
+            </div>
+            </div>
+        </section>
+
+        <!-- Seção 3: Classificação Contábil (antes de Controle Gerencial) -->
+        <section class="form-section">
+            <div class="section-header-left section-header-collapsible" onclick="toggleFormSection(this)" data-section="classificacao-contabil">
+                <div style="display: flex; align-items: center; gap: 8px;">
+                    <div class="section-icon-left">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width: 20px; height: 20px;">
+                            <path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/>
+                            <rect x="8" y="2" width="8" height="4" rx="1" ry="1"/>
+                        </svg>
+                    </div>
+                    <h2 class="section-title-left">Classificação Contábil</h2>
+                </div>
+                <span class="collapse-icon">▼</span>
+            </div>
+            <div class="section-content-collapsible">
+            <div class="toggle-section">
+                <div class="form-field">
+                    <label class="toggle-switch">
+                        <input type="checkbox" id="incluir_pl_contabil" name="incluir_pl_contabil" checked>
+                        <span class="toggle-slider"></span>
+                        <span class="toggle-label">Incluir P&L Contábil</span>
+                    </label>
+                    <p class="toggle-description">Marque para associar esta despesa ao centro de custo e categoria contábil.</p>
+                </div>
+            </div>
+            <div id="categorization-contabil" class="categorization-fields">
+                <div class="form-grid grid-3">
+                    <div class="form-field">
+                        <label for="centro_custo" class="form-label">Centro de Custo</label>
+                        <div class="select-with-add">
+                            <select id="centro_custo" name="centro_custo_id" class="form-select">
+                                <option value="">Selecione...</option>
+                            </select>
+                            <button type="button" class="add-btn" onclick="openAddModal('centro_custo')" title="Adicionar centro de custo">+</button>
+                        </div>
+                    </div>
+                    <div class="form-field">
+                        <label for="categoria_contabil" class="form-label">Categoria Contábil</label>
+                        <div class="select-with-add">
+                            <select id="categoria_contabil" name="categoria_contabil_id" class="form-select">
+                                <option value="">Selecione...</option>
+                            </select>
+                            <button type="button" class="add-btn" onclick="openAddModal('categoria_contabil')" title="Adicionar categoria">+</button>
+                        </div>
+                    </div>
+                    <div class="form-field">
+                        <label for="subcategoria_contabil" class="form-label">Subcategoria Contábil</label>
+                        <div class="select-with-add">
+                            <select id="subcategoria_contabil" name="subcategoria_contabil_id" class="form-select">
+                                <option value="">Selecione...</option>
+                            </select>
+                            <button type="button" class="add-btn" onclick="openAddModal('subcategoria_contabil')" title="Adicionar subcategoria">+</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            </div>
+        </section>
+
+        <!-- Seção 4: Controle Gerencial -->
+        <section class="form-section">
+            <div class="section-header-left section-header-collapsible" onclick="toggleFormSection(this)" data-section="controle-gerencial">
+                <div style="display: flex; align-items: center; gap: 8px;">
+                    <div class="section-icon-left">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width: 20px; height: 20px;">
+                            <line x1="18" y1="20" x2="18" y2="10"/>
+                            <line x1="12" y1="20" x2="12" y2="4"/>
+                            <line x1="6" y1="20" x2="6" y2="14"/>
+                        </svg>
+                    </div>
+                    <h2 class="section-title-left">Controle Gerencial</h2>
+                </div>
+                <span class="collapse-icon">▼</span>
+            </div>
+            <div class="section-content-collapsible">
+            <div class="toggle-section">
+                <div class="form-field">
+                    <label class="toggle-switch">
+                        <input type="checkbox" id="incluir_pl_gerencial" name="incluir_pl_gerencial" checked>
+                        <span class="toggle-slider"></span>
+                        <span class="toggle-label">Incluir P&L Gerencial</span>
+                    </label>
+                    <p class="toggle-description">Marque para incluir esta despesa no P&L Gerencial. Desmarcado automaticamente para impostos.</p>
+                </div>
+            </div>
+            <div id="categorization-gerencial" class="categorization-fields">
+                <div class="form-grid grid-2">
+                    <div class="form-field">
+                        <label for="categoria_gerencial" class="form-label">Categoria Gerencial</label>
+                        <div class="select-with-add">
+                            <select id="categoria_gerencial" name="categoria_gerencial_id" class="form-select">
+                                <option value="">Selecione...</option>
+                            </select>
+                            <button type="button" class="add-btn" onclick="openAddModal('categoria_gerencial')" title="Adicionar categoria">+</button>
+                        </div>
+                    </div>
+                    <div class="form-field">
+                        <label for="subcategoria_gerencial" class="form-label">Subcategoria Gerencial</label>
+                        <div class="select-with-add">
+                            <select id="subcategoria_gerencial" name="subcategoria_gerencial_id" class="form-select">
+                                <option value="">Selecione...</option>
+                            </select>
+                            <button type="button" class="add-btn" onclick="openAddModal('subcategoria_gerencial')" title="Adicionar subcategoria">+</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            </div>
+        </section>
+
+        <!-- Seção 5: Retenção na Fonte (Impostos de Terceiros) -->
+        <section class="form-section">
+            <div class="section-header-left section-header-collapsible" onclick="toggleFormSection(this)" data-section="retencao-fonte">
+                <div style="display: flex; align-items: center; gap: 8px;">
+                    <div class="section-icon-left">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width: 20px; height: 20px;">
+                            <path d="M9 14l6-6"/>
+                            <circle cx="9.5" cy="14.5" r="2.5"/>
+                            <circle cx="14.5" cy="9.5" r="2.5"/>
+                        </svg>
+                    </div>
+                    <h2 class="section-title-left">Retenção na Fonte</h2>
+                </div>
+                <span class="collapse-icon">▼</span>
+            </div>
+            <div class="section-content-collapsible">
+            <div class="toggle-section">
+                <div class="form-field">
+                    <label class="toggle-switch">
+                        <input type="checkbox" id="tem_retencao" name="tem_retencao">
+                        <span class="toggle-slider"></span>
+                        <span class="toggle-label">Aplicar Retenção na Fonte</span>
+                    </label>
+                    <p class="toggle-description">Marque para deduzir impostos retidos do valor total. Selecione o imposto e informe o valor de cada retenção.</p>
+                </div>
+            </div>
+            <div id="retencao-fields" class="categorization-fields" style="display: none;">
+                <div id="impostos-lista" style="display: flex; flex-direction: column; gap: 12px;">
+                </div>
+                <button type="button" id="btn-adicionar-imposto" class="btn btn-secondary" style="margin-top: 12px; display: flex; align-items: center; gap: 6px;">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width: 16px; height: 16px;">
+                        <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/>
+                    </svg>
+                    Adicionar Imposto
+                </button>
+                <div id="retencao-preview" class="retencao-preview" style="margin-top: 16px; padding: 16px; background-color: #fef3c7; border: 1px solid #f59e0b; border-radius: 8px; display: none;">
+                    <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 12px;">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="#d97706" stroke-width="2" style="width: 18px; height: 18px;">
+                            <circle cx="12" cy="12" r="10"/>
+                            <line x1="12" y1="8" x2="12" y2="12"/>
+                            <line x1="12" y1="16" x2="12.01" y2="16"/>
+                        </svg>
+                        <strong style="color: #92400e; font-size: 14px;">Prévia do Desmembramento</strong>
+                    </div>
+                    <div id="retencao-preview-content" style="font-size: 13px; color: #78350f;">
+                        <div style="display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid #fcd34d;">
+                            <span><strong>Valor Bruto da Despesa:</strong></span>
+                            <span id="preview-valor-bruto" style="font-weight: 600;">R$ 0,00</span>
+                        </div>
+                        <div id="preview-impostos-lista" style="margin: 8px 0;"></div>
+                        <div style="display: flex; justify-content: space-between; padding: 8px 0; border-top: 2px solid #f59e0b; margin-top: 8px;">
+                            <span><strong>Total Retido:</strong></span>
+                            <span id="preview-total-retido" style="font-weight: 600; color: #dc2626;">R$ 0,00</span>
+                        </div>
+                        <div style="display: flex; justify-content: space-between; padding: 8px 0; background-color: #d1fae5; margin: 8px -16px -16px; padding: 12px 16px; border-radius: 0 0 8px 8px;">
+                            <span><strong>Pagamento ao Fornecedor (Líquido):</strong></span>
+                            <span id="preview-valor-fornecedor" style="font-weight: 700; color: #059669; font-size: 15px;">R$ 0,00</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Seção 6: Documentação e Comprovantes -->
+        <section class="form-section">
+            <div class="section-header-left section-header-collapsible" onclick="toggleFormSection(this)" data-section="documentacao">
+                <div style="display: flex; align-items: center; gap: 8px;">
+                    <div class="section-icon-left">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width: 20px; height: 20px;">
+                            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                            <polyline points="14,2 14,8 20,8"/>
+                            <line x1="16" y1="13" x2="8" y2="13"/>
+                            <line x1="16" y1="17" x2="8" y2="17"/>
+                        </svg>
+                    </div>
+                    <h2 class="section-title-left">Documentação e Comprovantes</h2>
+                </div>
+                <span class="collapse-icon">▼</span>
+            </div>
+            <div class="section-content-collapsible">
+            <div class="form-grid grid-2">
+                <div class="form-field">
+                    <label for="numero_nota_fiscal" class="form-label">Número da Nota Fiscal</label>
+                    <input type="text" id="numero_nota_fiscal" name="numero_nota_fiscal" class="form-input" placeholder="Número da Nota Fiscal" autocomplete="off">
+                </div>
+                <div class="form-field">
+                    <label for="link_nota_fiscal" class="form-label">Link da Nota Fiscal</label>
+                    <input type="url" id="link_nota_fiscal" name="link_nota_fiscal" class="form-input" placeholder="https://link-para-nota-fiscal.com" autocomplete="off">
+                </div>
+            </div>
+            <div class="form-field">
+                <label for="link_comprovante" class="form-label">Link do Comprovante</label>
+                <input type="url" id="link_comprovante" name="link_comprovante" class="form-input" placeholder="https://link-para-comprovante.com" autocomplete="off">
+            </div>
+            </div>
+        </section>
+
+        <!-- Botões de Ação -->
+        <div class="form-actions">
+            <button type="button" class="btn btn-secondary" onclick="cancelarFormulario()">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width: 16px; height: 16px; margin-right: 6px; vertical-align: -2px;">
+                    <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+                </svg>
+                Cancelar
+            </button>
+            <button type="submit" class="btn btn-primary">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width: 16px; height: 16px; margin-right: 6px; vertical-align: -2px;">
+                    <polyline points="20,6 9,17 4,12"/>
+                </svg>
+                {{ 'Salvar Alterações' if transacao_id else 'Salvar' }}
+            </button>
+        </div>
+    </form>
+</div>
+
+<div id="loading-overlay" class="loading-overlay" style="display: none;">
+    <div class="loading-content">
+        <div class="loading-spinner"></div>
+        <p>Salvando...</p>
+    </div>
+</div>
+
+{% block scripts %}
+<script src="/static/js/nova_despesa.js"></script>
+{% endblock %}
+{% endblock %}

@@ -1,0 +1,126 @@
+{% extends "base.html" %}
+
+{% block title %}Cash Control - Bennu Finance{% endblock %}
+
+{% block content %}
+<div style="max-width: 1800px; margin: 0 auto; padding: 0.75rem 1rem;">
+    <!-- Header compacto com título, filtros e resumo na mesma área -->
+    <div style="display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 0.5rem;">
+        <div style="display: flex; align-items: center; gap: 10px;">
+            <div style="width: 28px; height: 28px; background: linear-gradient(135deg, #8b5cf6, #6d28d9); border-radius: 6px; display: flex; align-items: center; justify-content: center;">
+                <svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" style="width: 14px; height: 14px;">
+                    <rect x="2" y="5" width="20" height="14" rx="2"/>
+                    <path d="M2 10h20"/>
+                    <path d="M6 15h4"/>
+                </svg>
+            </div>
+            <h1 style="font-size: 1.1rem; font-weight: bold; color: #374151; margin: 0;">Cash Control</h1>
+        </div>
+        
+        <!-- Filtros inline -->
+        <div style="display: flex; gap: 8px; align-items: center;">
+            <select id="ano-filter" class="form-select" onchange="carregarDadosCashControl()" data-testid="select-ano" style="width: 85px; padding: 4px 8px; font-size: 12px;">
+            </select>
+            <select id="mes-filter" class="form-select" onchange="carregarDadosCashControl()" data-testid="select-mes" style="width: 100px; padding: 4px 8px; font-size: 12px;">
+                <option value="">Todos</option>
+                <option value="1">Janeiro</option>
+                <option value="2">Fevereiro</option>
+                <option value="3">Março</option>
+                <option value="4">Abril</option>
+                <option value="5">Maio</option>
+                <option value="6">Junho</option>
+                <option value="7">Julho</option>
+                <option value="8">Agosto</option>
+                <option value="9">Setembro</option>
+                <option value="10">Outubro</option>
+                <option value="11">Novembro</option>
+                <option value="12">Dezembro</option>
+            </select>
+            <select id="empresa-filter" class="form-select" onchange="carregarDadosCashControl()" data-testid="select-empresa" style="width: 140px; padding: 4px 8px; font-size: 12px;">
+                <option value="">Todas Empresas</option>
+            </select>
+            <button class="btn btn-outline btn-sm" onclick="resetFilters()" data-testid="button-limpar-filtros" style="padding: 4px 8px; font-size: 11px;">
+                Limpar
+            </button>
+        </div>
+        
+        <!-- Botões de ação -->
+        <div style="display: flex; gap: 8px;">
+            <button type="button" class="btn btn-secondary btn-sm" onclick="window.history.back()" data-testid="button-voltar" style="padding: 4px 10px; font-size: 11px;">
+                ← Voltar
+            </button>
+            <button type="button" class="btn btn-primary btn-sm" onclick="exportarCashControl('xlsx')" data-testid="button-exportar" style="padding: 4px 10px; font-size: 11px; background: #217346; border-color: #217346; display: inline-flex; align-items: center; gap: 3px;">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8l-6-6zm-1 9h-2v2h2v2h-2v2H9v-2H7v-2h2v-2H7V9h2V7h2v2h2v2z"/></svg>
+                Excel
+            </button>
+        </div>
+    </div>
+
+    <!-- Cards de Resumo Compactos -->
+    <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 0.75rem;">
+        <div style="background: linear-gradient(135deg, #10b981, #059669); color: white; padding: 10px 12px; border-radius: 6px;">
+            <h4 style="font-size: 0.7rem; margin-bottom: 2px; opacity: 0.9;">Total Entradas</h4>
+            <div id="total-entradas" style="font-size: 1.1rem; font-weight: bold;">R$ 0,00</div>
+        </div>
+        <div style="background: linear-gradient(135deg, #ef4444, #dc2626); color: white; padding: 10px 12px; border-radius: 6px;">
+            <h4 style="font-size: 0.7rem; margin-bottom: 2px; opacity: 0.9;">Total Saídas</h4>
+            <div id="total-saidas" style="font-size: 1.1rem; font-weight: bold;">R$ 0,00</div>
+        </div>
+        <div style="background: linear-gradient(135deg, #3b82f6, #1e40af); color: white; padding: 10px 12px; border-radius: 6px;">
+            <h4 style="font-size: 0.7rem; margin-bottom: 2px; opacity: 0.9;">Saldo Final</h4>
+            <div id="saldo-final" style="font-size: 1.1rem; font-weight: bold;">R$ 0,00</div>
+        </div>
+        <div style="background: linear-gradient(135deg, #8b5cf6, #6d28d9); color: white; padding: 10px 12px; border-radius: 6px;">
+            <h4 style="font-size: 0.7rem; margin-bottom: 2px; opacity: 0.9;">Movimentações</h4>
+            <div id="qtd-movimentacoes" style="font-size: 1.1rem; font-weight: bold;">0</div>
+        </div>
+    </div>
+
+    <!-- Tabela Cash Control -->
+    <div style="background: white; border-radius: 6px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); overflow: hidden;">
+        <div style="padding: 8px 12px; border-bottom: 1px solid #e5e7eb; display: flex; justify-content: space-between; align-items: center;">
+            <h6 style="margin: 0; font-size: 0.85rem; font-weight: 600;">Extrato de Movimentações</h6>
+            <small style="color: #6b7280; font-size: 0.75rem;" id="periodo-info">Período: 2025</small>
+        </div>
+        <div style="max-height: calc(100vh - 250px); overflow-y: auto;">
+            <table class="table table-sm table-hover mb-0" id="cash-control-table" data-testid="tabela-cash-control" style="font-size: 0.75rem;">
+                <thead style="position: sticky; top: 0; z-index: 10; background: #f9fafb;">
+                    <tr>
+                        <th style="padding: 6px 8px; font-size: 0.7rem;">Mês/Semana</th>
+                        <th style="padding: 6px 8px; font-size: 0.7rem;">Período</th>
+                        <th style="padding: 6px 8px; font-size: 0.7rem;">Categoria</th>
+                        <th style="padding: 6px 8px; font-size: 0.7rem;">Centro Custo</th>
+                        <th style="padding: 6px 8px; font-size: 0.7rem;">Competência</th>
+                        <th style="padding: 6px 8px; font-size: 0.7rem;">Data Pagto</th>
+                        <th style="padding: 6px 8px; font-size: 0.7rem;">Banco</th>
+                        <th style="padding: 6px 8px; font-size: 0.7rem;">Forma Pgto</th>
+                        <th style="padding: 6px 8px; font-size: 0.7rem;">Descrição</th>
+                        <th style="padding: 6px 8px; font-size: 0.7rem;">Documento</th>
+                        <th style="padding: 6px 8px; font-size: 0.7rem;">Observação</th>
+                        <th style="padding: 6px 8px; font-size: 0.7rem; text-align: right;">Entradas</th>
+                        <th style="padding: 6px 8px; font-size: 0.7rem; text-align: right;">Saídas</th>
+                        <th style="padding: 6px 8px; font-size: 0.7rem; text-align: right;">Saldo</th>
+                    </tr>
+                </thead>
+                <tbody id="cash-control-body">
+                    <tr>
+                        <td colspan="14" style="text-align: center; padding: 20px;">Carregando...</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- Loading Overlay -->
+<div id="loading-overlay" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(255,255,255,0.8); z-index: 9999; justify-content: center; align-items: center;">
+    <div style="text-align: center;">
+        <div class="spinner-border text-primary" role="status"></div>
+        <p style="margin-top: 10px;">Carregando...</p>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="/static/js/cash-control.js?v=20260118"></script>
+{% endblock %}

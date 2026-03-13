@@ -1,0 +1,348 @@
+{% extends "base.html" %}
+
+{% block title %}{{ 'Editar Receita' if transacao_id else 'Nova Receita' }} - Bennu Finance{% endblock %}
+
+{% block content %}
+<div class="page-container" style="max-width: 1400px; margin: 0 auto; padding: 10px 20px;">
+    <div class="page-header" style="margin-bottom: 10px;">
+        <div style="display: flex; align-items: center; justify-content: space-between;">
+            <div style="display: flex; align-items: center; gap: 8px;">
+                <div class="icon-circle" style="background-color: #059669; display: flex; align-items: center; justify-content: center; width: 28px; height: 28px;">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" style="width: 14px; height: 14px;">
+                        {% if transacao_id %}
+                        <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-9"/>
+                        <path d="m9 9 3-3 3 3"/>
+                        <path d="M21 3l-6 6"/>
+                        {% else %}
+                        <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
+                        {% endif %}
+                    </svg>
+                </div>
+                <div style="display: flex; align-items: center; gap: 8px;">
+                    <h1 style="font-size: 1.1rem; font-weight: bold; color: #374151; margin: 0;">{{ 'Editar Receita' if transacao_id else 'Nova Receita' }}</h1>
+                    <span style="color: #d1d5db; font-size: 20px; margin: 0 4px;">|</span>
+                    <button 
+                        type="button" 
+                        id="btn-toggle-impostos" 
+                        class="tab-button" 
+                        style="font-size: 16px; font-weight: 500; color: #6b7280; background: none; border: none; padding: 4px 12px; cursor: pointer; border-radius: 6px; transition: all 0.2s;"
+                        onmouseover="this.style.backgroundColor='#f3f4f6'; this.style.color='#374151';"
+                        onmouseout="this.style.backgroundColor='transparent'; this.style.color='#6b7280';"
+                        onclick="toggleImpostosTab()"
+                        data-testid="tab-impostos"
+                    >
+                        Impostos
+                    </button>
+                </div>
+            </div>
+            <button 
+                type="button" 
+                class="btn-link" 
+                style="color: #6b7280; text-decoration: none; border: none; background: none; cursor: pointer; font-size: 14px;"
+                onclick="window.history.back()"
+                data-testid="button-voltar"
+            >
+                ← Voltar
+            </button>
+        </div>
+    </div>
+
+    <form id="nova-receita-form" class="expense-form form-compact" autocomplete="off">
+        {% if transacao_id %}
+        <input type="hidden" id="transacao-id" name="id" value="{{ transacao_id }}">
+        {% endif %}
+        <!-- Seção 1: Dados Iniciais da Receita -->
+        <section class="form-section">
+            <div class="section-header-left section-header-collapsible" onclick="toggleFormSection(this)" data-section="dados-iniciais">
+                <div style="display: flex; align-items: center; gap: 8px;">
+                    <div class="section-icon-left">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width: 20px; height: 20px;">
+                            <path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
+                            <circle cx="8.5" cy="7" r="4"/>
+                            <line x1="20" y1="8" x2="20" y2="14"/>
+                            <line x1="23" y1="11" x2="17" y2="11"/>
+                        </svg>
+                    </div>
+                    <h2 class="section-title-left">Dados Iniciais da Receita</h2>
+                </div>
+                <span class="collapse-icon">▼</span>
+            </div>
+            <div class="section-content-collapsible">
+            <div class="form-grid grid-4">
+                <div class="form-field">
+                    <label for="ano" class="form-label required">Ano</label>
+                    <select id="ano" name="ano" class="form-select" required>
+                        <option value="">Selecione...</option>
+                    </select>
+                </div>
+                <div class="form-field">
+                    <label for="empresa" class="form-label required">Empresa</label>
+                    <div class="select-with-add">
+                        <select id="empresa" name="empresa_id" class="form-select" required>
+                            <option value="">Selecione...</option>
+                        </select>
+                        <button type="button" class="add-btn" onclick="openAddModal('empresa')" title="Adicionar nova empresa">+</button>
+                    </div>
+                </div>
+                <div class="form-field">
+                    <label for="cliente" class="form-label">Cliente</label>
+                    <div class="select-with-add">
+                        <select id="cliente" name="cliente_id" class="form-select">
+                            <option value="">Selecione...</option>
+                        </select>
+                        <button type="button" class="add-btn" onclick="openAddModal('cliente')" title="Adicionar novo cliente">+</button>
+                    </div>
+                </div>
+                <div class="form-field">
+                    <label for="produto_servico" class="form-label">Produto/Serviço</label>
+                    <div class="select-with-add">
+                        <select id="produto_servico" name="produto_servico_id" class="form-select">
+                            <option value="">Selecione...</option>
+                        </select>
+                        <button type="button" class="add-btn" onclick="openAddModal('produto_servico')" title="Adicionar novo produto/serviço">+</button>
+                    </div>
+                </div>
+            </div>
+            </div>
+        </section>
+
+        <!-- Seção 2: Informações Financeiras -->
+        <section class="form-section" id="informacoes-financeiras-section">
+            <div class="section-header-left section-header-collapsible" onclick="toggleFormSection(this)" data-section="info-financeiras">
+                <div style="display: flex; align-items: center; gap: 8px;">
+                    <div class="section-icon-left">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width: 20px; height: 20px;">
+                            <line x1="12" y1="1" x2="12" y2="23"/>
+                            <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>
+                        </svg>
+                    </div>
+                    <h2 class="section-title-left">Informações Financeiras</h2>
+                </div>
+                <span class="collapse-icon">▼</span>
+            </div>
+            <div class="section-content-collapsible">
+            <div class="form-grid" style="display: grid; grid-template-columns: 2fr 1fr 1fr 1fr 1fr 1fr; gap: 12px;">
+                <div class="form-field">
+                    <label for="titulo" class="form-label">Título</label>
+                    <input type="text" id="titulo" name="titulo" class="form-input" placeholder="Descrição resumida" autocomplete="off">
+                </div>
+                <div class="form-field">
+                    <label for="valor" class="form-label">Valor</label>
+                    <div class="currency-input">
+                        <span class="currency-symbol">R$</span>
+                        <input type="text" id="valor" name="valor" class="form-input currency" placeholder="0,00" autocomplete="off" inputmode="decimal">
+                    </div>
+                </div>
+                <div class="form-field">
+                    <label for="data_lancamento" class="form-label">Lançamento</label>
+                    <input type="date" id="data_lancamento" name="data_lancamento" class="form-input">
+                </div>
+                <div class="form-field">
+                    <label for="data_vencimento" class="form-label">Vencimento</label>
+                    <input type="date" id="data_vencimento" name="data_vencimento" class="form-input">
+                </div>
+                <div class="form-field">
+                    <label for="data_recebimento" class="form-label">Recebimento</label>
+                    <input type="date" id="data_recebimento" name="data_recebimento" class="form-input">
+                </div>
+                <div class="form-field">
+                    <label for="valor_recebido" class="form-label">Vlr Recebido</label>
+                    <div class="currency-input">
+                        <span class="currency-symbol">R$</span>
+                        <input type="text" id="valor_recebido" name="valor_recebido" class="form-input currency" placeholder="0,00" autocomplete="off" inputmode="decimal">
+                    </div>
+                </div>
+            </div>
+            <div class="form-grid grid-4">
+                <div class="form-field">
+                    <label for="status" class="form-label">Status</label>
+                    <select id="status" name="status" class="form-select">
+                        <option value="pendente">Pendente</option>
+                        <option value="pago">Pago</option>
+                        <option value="cancelado">Cancelado</option>
+                    </select>
+                </div>
+                <div class="form-field">
+                    <label for="forma_recebimento" class="form-label">Forma Receb.</label>
+                    <select id="forma_recebimento" name="forma_recebimento" class="form-select">
+                        <option value="">Selecione...</option>
+                        <option value="transferencia">Transferência</option>
+                        <option value="cartao">Cartão Crédito</option>
+                        <option value="debito">Cartão Débito</option>
+                        <option value="dinheiro">Dinheiro</option>
+                        <option value="pix">PIX</option>
+                        <option value="outros">Cheque</option>
+                    </select>
+                </div>
+                <div class="form-field">
+                    <label for="competencia_contabil" class="form-label">Comp. Contábil</label>
+                    <input type="month" id="competencia_contabil" name="competencia_contabil" class="form-input">
+                </div>
+                <div class="form-field">
+                    <label for="competencia_gerencial" class="form-label">Comp. Gerencial</label>
+                    <input type="month" id="competencia_gerencial" name="competencia_gerencial" class="form-input">
+                </div>
+            </div>
+            <div class="form-field full-width">
+                <label for="descricao" class="form-label">Observação</label>
+                <textarea id="descricao" name="descricao" class="form-textarea" rows="2" placeholder="Observações sobre a receita..."></textarea>
+            </div>
+            </div>
+        </section>
+
+        <!-- Seção 3: Documentação e Comprovantes -->
+        <section class="form-section">
+            <div class="section-header-left section-header-collapsible" onclick="toggleFormSection(this)" data-section="documentacao">
+                <div style="display: flex; align-items: center; gap: 8px;">
+                    <div class="section-icon-left">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width: 20px; height: 20px;">
+                            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                            <polyline points="14,2 14,8 20,8"/>
+                            <line x1="16" y1="13" x2="8" y2="13"/>
+                            <line x1="16" y1="17" x2="8" y2="17"/>
+                        </svg>
+                    </div>
+                    <h2 class="section-title-left">Documentação e Comprovantes</h2>
+                </div>
+                <span class="collapse-icon">▼</span>
+            </div>
+            <div class="section-content-collapsible">
+            <div class="form-grid grid-4">
+                <div class="form-field">
+                    <label for="numero_nota_fiscal" class="form-label">Nº Nota Fiscal</label>
+                    <input type="text" id="numero_nota_fiscal" name="numero_nota_fiscal" class="form-input" placeholder="Número da Nota Fiscal" autocomplete="off">
+                </div>
+                <div class="form-field">
+                    <label for="link_nota_fiscal" class="form-label">Link Nota Fiscal</label>
+                    <input type="url" id="link_nota_fiscal" name="link_nota_fiscal" class="form-input" placeholder="https://link-para-nota-fiscal.com" autocomplete="off">
+                </div>
+                <div class="form-field">
+                    <label for="numero_pedido_compra" class="form-label">Nº Pedido Compra</label>
+                    <input type="text" id="numero_pedido_compra" name="numero_pedido_compra" class="form-input" placeholder="Número do Pedido de Compra" autocomplete="off">
+                </div>
+                <div class="form-field">
+                    <label for="link_pedido_compra" class="form-label">Link Pedido Compra</label>
+                    <input type="url" id="link_pedido_compra" name="link_pedido_compra" class="form-input" placeholder="https://link-para-pedido-compra.com" autocomplete="off">
+                </div>
+            </div>
+            </div>
+        </section>
+
+        <!-- Seção 4: Impostos sobre Receita (Substitui Informações Financeiras quando ativa) -->
+        <section class="form-section" id="impostos-section" style="display: none;">
+            <div class="section-header-left section-header-collapsible" onclick="toggleFormSection(this)" data-section="impostos">
+                <div style="display: flex; align-items: center; gap: 8px;">
+                    <div class="section-icon-left">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width: 20px; height: 20px;">
+                            <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
+                            <line x1="3" y1="9" x2="21" y2="9"/>
+                            <line x1="9" y1="21" x2="9" y2="9"/>
+                        </svg>
+                    </div>
+                    <h2 class="section-title-left">Impostos sobre a Receita</h2>
+                </div>
+                <span class="collapse-icon">▼</span>
+            </div>
+            <div class="section-content-collapsible">
+            <div style="padding: 24px;">
+                <!-- Resumo destacado -->
+                <div style="background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%); border: 2px solid #3b82f6; border-radius: 12px; padding: 20px; margin-bottom: 24px;">
+                    <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; text-align: center;">
+                        <div>
+                            <div style="font-size: 12px; font-weight: 600; color: #6b7280; margin-bottom: 4px; text-transform: uppercase;">Valor da Receita</div>
+                            <div style="font-size: 24px; font-weight: 700; color: #059669;" id="imposto-valor-base">R$ 0,00</div>
+                        </div>
+                        <div>
+                            <div style="font-size: 12px; font-weight: 600; color: #6b7280; margin-bottom: 4px; text-transform: uppercase;">Total de Impostos</div>
+                            <div style="font-size: 24px; font-weight: 700; color: #dc2626;" id="imposto-total-display">R$ 0,00</div>
+                        </div>
+                        <div>
+                            <div style="font-size: 12px; font-weight: 600; color: #6b7280; margin-bottom: 4px; text-transform: uppercase;">Valor Líquido</div>
+                            <div style="font-size: 24px; font-weight: 700; color: #3b82f6;" id="imposto-valor-liquido">R$ 0,00</div>
+                        </div>
+                    </div>
+                    <div style="text-align: center; margin-top: 12px; font-size: 13px; color: #6b7280; font-weight: 500;" id="imposto-empresa-nome">
+                        <!-- Nome da empresa será inserido aqui -->
+                    </div>
+                </div>
+
+                <!-- Grid de impostos compacto e profissional -->
+                <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px;">
+                    <!-- PIS -->
+                    <div style="background: white; border: 1px solid #e5e7eb; border-radius: 8px; padding: 16px;">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                            <span style="font-weight: 600; color: #374151; font-size: 14px;">PIS</span>
+                            <span style="background: #dbeafe; color: #1e40af; padding: 2px 8px; border-radius: 12px; font-size: 11px; font-weight: 600;" id="aliquota-pis">0,65%</span>
+                        </div>
+                        <div style="font-size: 20px; font-weight: 700; color: #374151;">R$ <span id="imposto-pis">0,00</span></div>
+                    </div>
+
+                    <!-- COFINS -->
+                    <div style="background: white; border: 1px solid #e5e7eb; border-radius: 8px; padding: 16px;">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                            <span style="font-weight: 600; color: #374151; font-size: 14px;">COFINS</span>
+                            <span style="background: #dbeafe; color: #1e40af; padding: 2px 8px; border-radius: 12px; font-size: 11px; font-weight: 600;" id="aliquota-cofins">3,00%</span>
+                        </div>
+                        <div style="font-size: 20px; font-weight: 700; color: #374151;">R$ <span id="imposto-cofins">0,00</span></div>
+                    </div>
+
+                    <!-- ISS -->
+                    <div style="background: white; border: 1px solid #e5e7eb; border-radius: 8px; padding: 16px;">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                            <span style="font-weight: 600; color: #374151; font-size: 14px;">ISS</span>
+                            <span style="background: #dbeafe; color: #1e40af; padding: 2px 8px; border-radius: 12px; font-size: 11px; font-weight: 600;" id="aliquota-iss">5,00%</span>
+                        </div>
+                        <div style="font-size: 20px; font-weight: 700; color: #374151;">R$ <span id="imposto-iss">0,00</span></div>
+                    </div>
+
+                    <!-- IRPJ -->
+                    <div style="background: white; border: 1px solid #e5e7eb; border-radius: 8px; padding: 16px;">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                            <span style="font-weight: 600; color: #374151; font-size: 14px;">IRPJ</span>
+                            <span style="background: #dbeafe; color: #1e40af; padding: 2px 8px; border-radius: 12px; font-size: 11px; font-weight: 600;" id="aliquota-irpj">7,93%</span>
+                        </div>
+                        <div style="font-size: 20px; font-weight: 700; color: #374151;">R$ <span id="imposto-irpj">0,00</span></div>
+                    </div>
+
+                    <!-- CSLL -->
+                    <div style="background: white; border: 1px solid #e5e7eb; border-radius: 8px; padding: 16px; grid-column: span 2;">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                            <span style="font-weight: 600; color: #374151; font-size: 14px;">CSLL</span>
+                            <span style="background: #dbeafe; color: #1e40af; padding: 2px 8px; border-radius: 12px; font-size: 11px; font-weight: 600;" id="aliquota-csll">2,88%</span>
+                        </div>
+                        <div style="font-size: 20px; font-weight: 700; color: #374151;">R$ <span id="imposto-csll">0,00</span></div>
+                    </div>
+                </div>
+            </div>
+            </div>
+        </section>
+
+        <!-- Botões de Ação -->
+        <div class="form-actions">
+            <button type="button" class="btn btn-secondary" onclick="cancelarFormulario()">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width: 16px; height: 16px; margin-right: 6px; vertical-align: -2px;">
+                    <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+                </svg>
+                Cancelar
+            </button>
+            <button type="submit" class="btn btn-primary">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width: 16px; height: 16px; margin-right: 6px; vertical-align: -2px;">
+                    <polyline points="20,6 9,17 4,12"/>
+                </svg>
+                {{ 'Salvar Alterações' if transacao_id else 'Salvar' }}
+            </button>
+        </div>
+    </form>
+</div>
+
+<div id="loading-overlay" class="loading-overlay" style="display: none;">
+    <div class="loading-content">
+        <div class="loading-spinner"></div>
+        <p>Salvando...</p>
+    </div>
+</div>
+
+{% block scripts %}
+<script src="/static/js/nova_receita.js"></script>
+{% endblock %}
+{% endblock %}

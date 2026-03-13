@@ -1,0 +1,664 @@
+{% extends "base.html" %}
+
+{% block title %}Planejar - Bennu Finance{% endblock %}
+
+{% block content %}
+<style>
+    .planejamento-compact { font-size: 11px; }
+    .planejamento-compact .page-header { margin-bottom: 6px; padding: 0; }
+    .planejamento-compact .page-title { font-size: 1rem; margin: 0; }
+    .planejamento-compact .page-subtitle { font-size: 0.7rem; margin: 0; }
+    .planejamento-compact .filters-section { padding: 6px 10px; margin-bottom: 6px; gap: 8px; }
+    .planejamento-compact .filter-group label { font-size: 0.65rem; margin-bottom: 1px; }
+    .planejamento-compact .filter-group select { padding: 3px 6px; font-size: 0.7rem; min-height: 26px; }
+    .planejamento-compact .btn { padding: 4px 8px; font-size: 0.7rem; }
+    .planejamento-compact .data-table th, .planejamento-compact .data-table td { padding: 4px 6px; font-size: 0.7rem; }
+    .planejamento-compact .advanced-table th, .planejamento-compact .advanced-table td { padding: 4px 6px; font-size: 0.68rem; }
+    .planejamento-compact .advanced-table-container { max-height: calc(100vh - 280px); overflow-y: auto; }
+    .planejamento-compact .tabs-header { padding: 4px; }
+    .planejamento-compact .tab-button { padding: 4px 10px; font-size: 0.7rem; }
+    .planejamento-compact .tab-counter { font-size: 0.6rem; padding: 1px 4px; }
+    .planejamento-compact .pagination-info { font-size: 0.65rem; }
+    .planejamento-compact .pagination-controls button { padding: 3px 8px; font-size: 0.65rem; }
+    .planejamento-compact .pagination-current { font-size: 0.65rem; }
+    .planejamento-compact .actions-bar { padding: 6px 8px !important; }
+</style>
+<div class="planejamento-page planejamento-compact" style="padding: 6px 12px;">
+    <!-- Header compacto com título, filtros e botões em uma linha -->
+    <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 6px; flex-wrap: wrap;">
+        <div style="min-width: 180px;">
+            <h1 class="page-title" style="font-size: 0.95rem; margin: 0;">Planejamento Orçamentário</h1>
+            <p class="page-subtitle" style="font-size: 0.65rem; margin: 0; color: #6b7280;">Planeje receitas e despesas</p>
+        </div>
+        
+        <!-- Filtros inline -->
+        <div style="display: flex; align-items: flex-end; gap: 6px; flex: 1;">
+            <div style="display: flex; flex-direction: column;">
+                <label style="font-size: 0.6rem; margin-bottom: 1px; color: #6b7280;">Versão</label>
+                <select id="filter-versao" class="form-control" data-testid="select-filter-versao" style="padding: 2px 4px; font-size: 0.65rem; min-height: 24px; width: 110px;">
+                    <option value="">Versão Ativa</option>
+                </select>
+            </div>
+            <div style="display: flex; flex-direction: column;">
+                <label style="font-size: 0.6rem; margin-bottom: 1px; color: #6b7280;">Empresa</label>
+                <select id="filter-empresa" class="form-control" data-testid="select-filter-empresa" style="padding: 2px 4px; font-size: 0.65rem; min-height: 24px; width: 120px;">
+                    <option value="">Todas</option>
+                </select>
+            </div>
+            <div style="display: flex; flex-direction: column;">
+                <label style="font-size: 0.6rem; margin-bottom: 1px; color: #6b7280;">Ano</label>
+                <select id="filter-ano" class="form-control" data-testid="select-filter-ano" style="padding: 2px 4px; font-size: 0.65rem; min-height: 24px; width: 70px;">
+                </select>
+            </div>
+            <button id="btn-filtrar" class="btn btn-primary" data-testid="button-filtrar" style="padding: 3px 6px; font-size: 0.65rem; height: 24px;">
+                <i class="fas fa-filter"></i> Filtrar
+            </button>
+            <button id="btn-gerenciar-versoes" class="btn btn-secondary" data-testid="button-gerenciar-versoes" style="padding: 3px 6px; font-size: 0.65rem; height: 24px;">
+                <i class="fas fa-cog"></i> Versões
+            </button>
+        </div>
+        
+        <!-- Botões de ação à direita -->
+        <div style="display: flex; gap: 4px;">
+            <a href="/planejar/nova-receita" class="btn btn-success" data-testid="button-nova-receita-planejada" style="font-size: 0.65rem; padding: 3px 6px; height: 24px; display: flex; align-items: center; gap: 3px;">
+                <i class="fas fa-plus-circle"></i> Nova Receita
+            </a>
+            <a href="/planejar/nova-despesa" class="btn btn-danger" data-testid="button-nova-despesa-planejada" style="font-size: 0.65rem; padding: 3px 6px; height: 24px; display: flex; align-items: center; gap: 3px;">
+                <i class="fas fa-plus-circle"></i> Nova Despesa
+            </a>
+        </div>
+    </div>
+    
+    <!-- Modal de Gerenciamento de Versões -->
+    <div id="modal-versoes" class="modal" style="display: none;">
+        <div class="modal-content" style="max-width: 800px;">
+            <div class="modal-header">
+                <h2>Gerenciar Versões de Planejamento</h2>
+                <button class="modal-close" onclick="fecharModalVersoes()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div style="margin-bottom: 20px;">
+                    <button id="btn-criar-nova-versao" class="btn btn-primary" data-testid="button-criar-versao">
+                        <i class="fas fa-plus-circle"></i> Criar Nova Versão
+                    </button>
+                </div>
+                
+                <table class="data-table" id="table-versoes" style="width: 100%;">
+                    <thead>
+                        <tr>
+                            <th style="width: 30%;">Nome</th>
+                            <th style="width: 10%;">Ano</th>
+                            <th style="width: 12%;">Tipo</th>
+                            <th style="width: 12%;">Status</th>
+                            <th style="width: 8%;">Ativa</th>
+                            <th style="width: 10%;">Itens</th>
+                            <th style="width: 18%;">Ações</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tbody-versoes">
+                        <tr>
+                            <td colspan="7" style="text-align: center; padding: 40px;">
+                                <p>Carregando versões...</p>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal de Criar Nova Versão -->
+    <div id="modal-criar-versao" class="modal" style="display: none;">
+        <div class="modal-content" style="max-width: 500px;">
+            <div class="modal-header">
+                <h2>Criar Nova Versão de Planejamento</h2>
+                <button class="modal-close" onclick="fecharModalCriarVersao()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <form id="form-criar-versao">
+                    <div class="form-group" style="margin-bottom: 16px;">
+                        <label for="versao-ano" class="form-label" style="display: block; margin-bottom: 6px; font-weight: 500;">Ano *</label>
+                        <select id="versao-ano" name="ano" class="form-control" required style="width: 100%; padding: 8px 12px; border: 1px solid #d1d5db; border-radius: 6px;">
+                        </select>
+                    </div>
+                    <div class="form-group" style="margin-bottom: 16px;">
+                        <label for="versao-nome" class="form-label" style="display: block; margin-bottom: 6px; font-weight: 500;">Nome da Versão *</label>
+                        <input type="text" id="versao-nome" name="nome" class="form-control" required placeholder="Ex: Orçamento Base 2025" style="width: 100%; padding: 8px 12px; border: 1px solid #d1d5db; border-radius: 6px;">
+                    </div>
+                    <div class="form-group" style="margin-bottom: 16px;">
+                        <label for="versao-tipo" class="form-label" style="display: block; margin-bottom: 6px; font-weight: 500;">Tipo</label>
+                        <select id="versao-tipo" name="tipo" class="form-control" style="width: 100%; padding: 8px 12px; border: 1px solid #d1d5db; border-radius: 6px;">
+                            <option value="baseline">Baseline</option>
+                            <option value="revisao">Revisão</option>
+                            <option value="forecast">Forecast</option>
+                        </select>
+                    </div>
+                    <div style="display: flex; justify-content: flex-end; gap: 12px; margin-top: 24px;">
+                        <button type="button" class="btn btn-secondary" onclick="fecharModalCriarVersao()">Cancelar</button>
+                        <button type="submit" class="btn btn-primary" data-testid="button-salvar-versao">Criar Versão</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Cards de Resumo Compactos (estilo dashboard) -->
+    <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 6px;">
+        <div class="summary-card green" style="padding: 10px 14px;">
+            <h3 style="font-size: 0.65rem; margin-bottom: 3px; text-transform: uppercase; opacity: 0.9;">Receitas Planejadas (Ano Completo)</h3>
+            <div class="card-value" id="total-receitas-planejadas" data-testid="text-total-receitas" style="font-size: 1.3rem; font-weight: 700;">R$ 0,00</div>
+            <div class="card-subtitle" id="count-receitas" data-testid="text-count-receitas" style="font-size: 0.6rem;">0 lançamentos</div>
+        </div>
+        <div class="summary-card red" style="padding: 10px 14px;">
+            <h3 style="font-size: 0.65rem; margin-bottom: 3px; text-transform: uppercase; opacity: 0.9;">Despesas Planejadas (Ano Completo)</h3>
+            <div class="card-value" id="total-despesas-planejadas" data-testid="text-total-despesas" style="font-size: 1.3rem; font-weight: 700;">R$ 0,00</div>
+            <div class="card-subtitle" id="count-despesas" data-testid="text-count-despesas" style="font-size: 0.6rem;">0 lançamentos</div>
+        </div>
+        <div class="summary-card blue" style="padding: 10px 14px;">
+            <h3 style="font-size: 0.65rem; margin-bottom: 3px; text-transform: uppercase; opacity: 0.9;">Saldo Planejado (Ano Completo)</h3>
+            <div class="card-value" id="saldo-planejado" data-testid="text-saldo" style="font-size: 1.3rem; font-weight: 700;">R$ 0,00</div>
+            <div class="card-subtitle" style="font-size: 0.6rem;">Receitas - Despesas</div>
+        </div>
+    </div>
+
+    <!-- Sistema de Abas -->
+    <div class="tabs-container">
+        <div class="tabs-header">
+            <button class="tab-button active" id="tab-receitas" data-tab="receitas" data-testid="button-tab-receitas">
+                Receitas <span class="tab-counter" id="counter-receitas">0</span>
+            </button>
+            <button class="tab-button" id="tab-despesas" data-tab="despesas" data-testid="button-tab-despesas">
+                Despesas <span class="tab-counter" id="counter-despesas">0</span>
+            </button>
+        </div>
+
+        <!-- Aba de Receitas -->
+        <div class="tab-content active" id="content-receitas">
+            <div class="actions-bar" style="padding: 12px; background: #f9fafb; border-bottom: 1px solid #e5e7eb; display: none;" id="receitas-actions-bar">
+                <button class="btn btn-danger btn-sm" onclick="deletarLinhasSelecionadas('receitas')" data-testid="button-deletar-receitas-selecionadas">
+                    <i class="fas fa-trash"></i> Deletar Selecionadas (<span id="receitas-count-selected">0</span>)
+                </button>
+            </div>
+            <div class="advanced-table-container">
+                <div class="advanced-table-wrapper">
+                    <table class="advanced-table" id="table-receitas-planejadas" data-testid="table-receitas">
+                        <thead>
+                            <tr>
+                                <th class="checkbox-cell">
+                                    <input type="checkbox" id="receitas-select-all" onchange="toggleSelectAll('receitas')" data-testid="checkbox-select-all-receitas">
+                                </th>
+                                <th data-field="mes">Ano/Mês</th>
+                                <th data-field="descricao">Descrição</th>
+                                <th data-field="cliente_nome">Cliente</th>
+                                <th data-field="projeto_nome">Projeto</th>
+                                <th data-field="versao_id">Versão</th>
+                                <th data-field="valor_previsto">Valor Previsto</th>
+                                <th class="actions-cell">Ações</th>
+                            </tr>
+                        </thead>
+                    <tbody id="tbody-receitas">
+                            <tr>
+                                <td colspan="8" style="text-align: center; padding: 40px;">
+                                    <i class="fas fa-chart-line" style="font-size: 48px; color: #cbd5e0;"></i>
+                                    <p style="margin-top: 16px; color: #6b7280;">Nenhuma receita planejada ainda</p>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Paginação de Receitas Compacta -->
+            <div class="table-pagination" id="pagination-receitas" style="padding: 4px 8px; margin-top: 0;">
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <span style="font-size: 0.6rem; color: #6b7280;"><span id="receitas-showing-from">1</span>-<span id="receitas-showing-to">10</span> de <span id="receitas-total-records">0</span></span>
+                    <div style="display: flex; gap: 4px; align-items: center;">
+                        <button id="receitas-prev-page" class="btn btn-secondary" style="padding: 2px 6px; font-size: 0.6rem;" disabled>◀</button>
+                        <span style="font-size: 0.6rem;"><span id="receitas-current-page">1</span>/<span id="receitas-total-pages">1</span></span>
+                        <button id="receitas-next-page" class="btn btn-secondary" style="padding: 2px 6px; font-size: 0.6rem;" disabled>▶</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Aba de Despesas -->
+        <div class="tab-content" id="content-despesas">
+            <div class="actions-bar" style="padding: 4px 8px; background: #f9fafb; border-bottom: 1px solid #e5e7eb; display: none;" id="despesas-actions-bar">
+                <button class="btn btn-danger btn-sm" onclick="deletarLinhasSelecionadas('despesas')" data-testid="button-deletar-despesas-selecionadas" style="padding: 3px 6px; font-size: 0.65rem;">
+                    <i class="fas fa-trash"></i> Deletar (<span id="despesas-count-selected">0</span>)
+                </button>
+            </div>
+            <div class="advanced-table-container">
+                <div class="advanced-table-wrapper">
+                    <table class="advanced-table" id="table-despesas-planejadas" data-testid="table-despesas">
+                        <thead>
+                            <tr>
+                                <th class="checkbox-cell">
+                                    <input type="checkbox" id="despesas-select-all" onchange="toggleSelectAll('despesas')" data-testid="checkbox-select-all-despesas">
+                                </th>
+                                <th data-field="mes">Ano/Mês</th>
+                                <th data-field="descricao">Descrição</th>
+                                <th data-field="fornecedor_id">Fornecedor</th>
+                                <th data-field="categoria_gerencial_id">Categoria</th>
+                                <th data-field="versao_id">Versão</th>
+                                <th data-field="valor_previsto">Valor Previsto</th>
+                                <th class="actions-cell">Ações</th>
+                            </tr>
+                        </thead>
+                    <tbody id="tbody-despesas">
+                            <tr>
+                                <td colspan="8" style="text-align: center; padding: 20px;">
+                                    <i class="fas fa-chart-line" style="font-size: 24px; color: #cbd5e0;"></i>
+                                    <p style="margin-top: 8px; color: #6b7280; font-size: 0.7rem;">Nenhuma despesa planejada ainda</p>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Paginação de Despesas Compacta -->
+            <div class="table-pagination" id="pagination-despesas" style="padding: 4px 8px; margin-top: 0;">
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <span style="font-size: 0.6rem; color: #6b7280;"><span id="despesas-showing-from">1</span>-<span id="despesas-showing-to">10</span> de <span id="despesas-total-records">0</span></span>
+                    <div style="display: flex; gap: 4px; align-items: center;">
+                        <button id="despesas-prev-page" class="btn btn-secondary" style="padding: 2px 6px; font-size: 0.6rem;" disabled>◀</button>
+                        <span style="font-size: 0.6rem;"><span id="despesas-current-page">1</span>/<span id="despesas-total-pages">1</span>
+                        </span>
+                        <button id="despesas-next-page" class="btn btn-secondary" style="padding: 2px 6px; font-size: 0.6rem;" disabled>▶</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    .planejamento-page {
+        padding: 24px;
+        max-width: 1400px;
+        margin: 0 auto;
+    }
+
+    .page-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 32px;
+        flex-wrap: wrap;
+    }
+
+    .page-title {
+        font-size: 28px;
+        font-weight: 700;
+        color: #1f2937;
+        margin: 0;
+    }
+
+    .page-subtitle {
+        color: #6b7280;
+        margin: 8px 0 0 0;
+    }
+
+    .header-actions {
+        display: flex;
+        gap: 12px;
+    }
+
+    .filters-section {
+        display: flex;
+        gap: 16px;
+        margin-bottom: 24px;
+        flex-wrap: wrap;
+        align-items: flex-end;
+    }
+
+    .filter-group {
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+    }
+
+    .filter-group label {
+        font-size: 12px;
+        font-weight: 600;
+        color: #374151;
+    }
+
+    .summary-cards {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+        gap: 16px;
+        margin-bottom: 32px;
+    }
+
+    .summary-card {
+        border-radius: 8px;
+        padding: 20px;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        border: none !important;
+    }
+
+    .summary-card.green {
+        background: linear-gradient(135deg, #10b981, #047857) !important;
+        box-shadow: 0 4px 15px rgba(16, 185, 129, 0.3) !important;
+    }
+
+    .summary-card.green:hover {
+        background: linear-gradient(135deg, #059669, #065f46) !important;
+        transform: translateY(-4px) !important;
+        box-shadow: 0 8px 25px rgba(16, 185, 129, 0.4) !important;
+    }
+
+    .summary-card.red {
+        background: linear-gradient(135deg, #ef4444, #dc2626) !important;
+        box-shadow: 0 4px 15px rgba(239, 68, 68, 0.3) !important;
+    }
+
+    .summary-card.red:hover {
+        background: linear-gradient(135deg, #dc2626, #b91c1c) !important;
+        transform: translateY(-4px) !important;
+        box-shadow: 0 8px 25px rgba(239, 68, 68, 0.4) !important;
+    }
+
+    .summary-card.blue {
+        background: linear-gradient(135deg, #3b82f6, #2563eb) !important;
+        box-shadow: 0 4px 15px rgba(59, 130, 246, 0.3) !important;
+    }
+
+    .summary-card.blue:hover {
+        background: linear-gradient(135deg, #2563eb, #1d4ed8) !important;
+        transform: translateY(-4px) !important;
+        box-shadow: 0 8px 25px rgba(59, 130, 246, 0.4) !important;
+    }
+
+    .card-content h3 {
+        font-size: 14px;
+        color: white !important;
+        opacity: 0.95 !important;
+        margin: 0 0 8px 0;
+    }
+
+    .card-value {
+        font-size: 24px;
+        font-weight: 700;
+        color: white !important;
+        margin: 0 0 4px 0;
+    }
+
+    .card-subtitle {
+        font-size: 12px;
+        color: rgba(255, 255, 255, 0.9) !important;
+    }
+
+    .tabs-container {
+        background: white;
+        border-radius: 8px;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+        overflow: hidden;
+    }
+
+    .tabs-header {
+        display: flex;
+        border-bottom: 2px solid #e5e7eb;
+        background: #f9fafb;
+    }
+
+    .tab-button {
+        flex: 1;
+        padding: 16px 24px;
+        background: transparent;
+        border: none;
+        font-size: 14px;
+        font-weight: 600;
+        color: #6b7280;
+        cursor: pointer;
+        transition: all 0.2s;
+    }
+
+    .tab-button:hover {
+        background: #f3f4f6;
+    }
+
+    .tab-button.active {
+        color: #3b82f6;
+        border-bottom: 3px solid #3b82f6;
+    }
+
+    .tab-counter {
+        display: inline-block;
+        margin-left: 8px;
+        padding: 2px 8px;
+        background: #e5e7eb;
+        border-radius: 12px;
+        font-size: 12px;
+        font-weight: 600;
+    }
+
+    .tab-button.active .tab-counter {
+        background: #dbeafe;
+        color: #3b82f6;
+    }
+
+    .tab-content {
+        display: none;
+        padding: 24px;
+    }
+
+    .tab-content.active {
+        display: block;
+    }
+
+    .table-container {
+        overflow-x: auto;
+    }
+
+    .data-table {
+        width: 100%;
+        border-collapse: collapse;
+    }
+
+    .data-table thead th {
+        background: #f9fafb;
+        padding: 12px;
+        text-align: left;
+        font-size: 12px;
+        font-weight: 600;
+        color: #374151;
+        border-bottom: 2px solid #e5e7eb;
+    }
+
+    .data-table tbody td {
+        padding: 12px;
+        border-bottom: 1px solid #f3f4f6;
+        font-size: 14px;
+        color: #1f2937;
+    }
+
+    .data-table tbody tr:hover {
+        background: #f9fafb;
+    }
+
+    .btn {
+        padding: 10px 16px;
+        border-radius: 6px;
+        font-size: 14px;
+        font-weight: 600;
+        border: none;
+        cursor: pointer;
+        transition: all 0.2s;
+        text-decoration: none;
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .btn-primary {
+        background: #3b82f6;
+        color: white;
+    }
+
+    .btn-primary:hover {
+        background: #2563eb;
+    }
+
+    .btn-success {
+        background: #10b981;
+        color: white;
+    }
+
+    .btn-success:hover {
+        background: #059669;
+    }
+
+    .btn-danger {
+        background: #ef4444;
+        color: white;
+    }
+
+    .btn-danger:hover {
+        background: #dc2626;
+    }
+
+    .btn-sm {
+        padding: 6px 12px;
+        font-size: 12px;
+    }
+
+    .form-control {
+        padding: 8px 12px;
+        border: 1px solid #d1d5db;
+        border-radius: 6px;
+        font-size: 14px;
+        min-width: 150px;
+    }
+
+    .form-control:focus {
+        outline: none;
+        border-color: #3b82f6;
+        box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+    }
+
+    /* Paginação */
+    .table-pagination {
+        padding: 16px 24px;
+        background: #f9fafb;
+        border-top: 1px solid #e5e7eb;
+    }
+
+    .pagination-info {
+        color: #6b7280;
+        font-size: 14px;
+    }
+
+    .pagination-controls {
+        display: flex;
+        align-items: center;
+        gap: 16px;
+    }
+
+    .pagination-current {
+        font-size: 14px;
+        color: #374151;
+    }
+
+    .btn-secondary {
+        background: #6b7280;
+        color: white;
+    }
+
+    .btn-secondary:hover:not(:disabled) {
+        background: #4b5563;
+    }
+
+    .btn-secondary:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+    }
+
+    .flex {
+        display: flex;
+    }
+
+    .justify-between {
+        justify-content: space-between;
+    }
+
+    .items-center {
+        align-items: center;
+    }
+
+    .mt-4 {
+        margin-top: 16px;
+    }
+
+    .mx-4 {
+        margin-left: 16px;
+        margin-right: 16px;
+    }
+    
+    /* Modal Styles */
+    .modal {
+        display: none;
+        position: fixed;
+        z-index: 1000;
+        left: 0;
+        top: 0;
+        width: 100%;
+        height: 100%;
+        background-color: rgba(0, 0, 0, 0.5);
+        overflow: auto;
+    }
+    
+    .modal-content {
+        background-color: white;
+        margin: 5% auto;
+        padding: 0;
+        border-radius: 8px;
+        width: 90%;
+        max-width: 900px;
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+    }
+    
+    .modal-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 20px 24px;
+        border-bottom: 1px solid #e5e7eb;
+    }
+    
+    .modal-header h2 {
+        margin: 0;
+        font-size: 20px;
+        font-weight: 600;
+        color: #1f2937;
+    }
+    
+    .modal-close {
+        background: none;
+        border: none;
+        font-size: 28px;
+        font-weight: bold;
+        color: #9ca3af;
+        cursor: pointer;
+        padding: 0;
+        width: 32px;
+        height: 32px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+    
+    .modal-close:hover {
+        color: #4b5563;
+    }
+    
+    .modal-body {
+        padding: 24px;
+    }
+</style>
+
+<script src="/static/js/planejar.js?v=20251030-006"></script>
+{% endblock %}

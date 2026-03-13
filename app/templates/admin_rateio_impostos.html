@@ -1,0 +1,219 @@
+{% extends "base.html" %}
+
+{% block title %}Rateio de Impostos - Bennu Finance{% endblock %}
+
+{% block content %}
+<div class="container" style="max-width: 1600px; margin: 0 auto; padding: 20px;">
+    <div style="margin-bottom: 30px;">
+        <h1>Rateio de Impostos</h1>
+        <p style="color: #6b7280;">Visualização de impostos calculados por empresa, cliente e produto/serviço</p>
+    </div>
+
+    <!-- Filtros -->
+    <div class="filters-section" style="background: white; border-radius: 8px; padding: 16px; margin-bottom: 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
+        <div style="display: flex; flex-wrap: wrap; gap: 12px; align-items: end;">
+            <div class="filter-group" style="min-width: 100px; flex: 0 1 auto;">
+                <label for="filter-ano" style="font-size: 13px; font-weight: 500; color: #374151; margin-bottom: 4px; display: block;">Ano</label>
+                <select id="filter-ano" class="form-select" style="font-size: 13px; padding: 6px 8px;">
+                </select>
+            </div>
+
+            <div class="filter-group" style="min-width: 130px; flex: 0 1 auto;">
+                <label for="filter-mes-inicial" style="font-size: 13px; font-weight: 500; color: #374151; margin-bottom: 4px; display: block;">Mês Inicial</label>
+                <select id="filter-mes-inicial" class="form-select" style="font-size: 13px; padding: 6px 8px;">
+                    <option value="1">Janeiro</option>
+                    <option value="2">Fevereiro</option>
+                    <option value="3">Março</option>
+                    <option value="4">Abril</option>
+                    <option value="5">Maio</option>
+                    <option value="6">Junho</option>
+                    <option value="7">Julho</option>
+                    <option value="8">Agosto</option>
+                    <option value="9">Setembro</option>
+                    <option value="10">Outubro</option>
+                    <option value="11">Novembro</option>
+                    <option value="12">Dezembro</option>
+                </select>
+            </div>
+
+            <div class="filter-group" style="min-width: 130px; flex: 0 1 auto;">
+                <label for="filter-mes-final" style="font-size: 13px; font-weight: 500; color: #374151; margin-bottom: 4px; display: block;">Mês Final</label>
+                <select id="filter-mes-final" class="form-select" style="font-size: 13px; padding: 6px 8px;">
+                    <option value="1">Janeiro</option>
+                    <option value="2">Fevereiro</option>
+                    <option value="3">Março</option>
+                    <option value="4">Abril</option>
+                    <option value="5">Maio</option>
+                    <option value="6">Junho</option>
+                    <option value="7">Julho</option>
+                    <option value="8">Agosto</option>
+                    <option value="9">Setembro</option>
+                    <option value="10">Outubro</option>
+                    <option value="11">Novembro</option>
+                    <option value="12" selected>Dezembro</option>
+                </select>
+            </div>
+
+            <div class="filter-group" style="min-width: 180px; flex: 1 1 auto;">
+                <label for="filter-empresa" style="font-size: 13px; font-weight: 500; color: #374151; margin-bottom: 4px; display: block;">Empresa</label>
+                <select id="filter-empresa" class="form-select" style="font-size: 13px; padding: 6px 8px;">
+                    <option value="">Todas</option>
+                </select>
+            </div>
+
+            <div class="filter-group" style="min-width: 140px; flex: 0 1 auto;">
+                <label for="filter-fonte" style="font-size: 13px; font-weight: 500; color: #374151; margin-bottom: 4px; display: block;">Base de Cálculo</label>
+                <select id="filter-fonte" class="form-select" style="font-size: 13px; padding: 6px 8px;">
+                    <option value="realizado" selected>Realizado</option>
+                    <option value="previsto">Orçado</option>
+                </select>
+            </div>
+
+            <button class="btn btn-primary" onclick="carregarRateioImpostos()" style="padding: 6px 16px; font-size: 13px; height: 34px; white-space: nowrap;">
+                <i class="fas fa-filter"></i> Aplicar Filtros
+            </button>
+        </div>
+    </div>
+
+    <!-- Cards de Resumo -->
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px; margin-bottom: 30px;">
+        <div class="metric-card" data-testid="card-total-impostos">
+            <div class="metric-icon" style="background: #fee2e2;">
+                <i class="fas fa-file-invoice-dollar" style="color: #dc2626;"></i>
+            </div>
+            <div>
+                <div class="metric-label">Total de Impostos</div>
+                <div class="metric-value" id="total-impostos">R$ 0,00</div>
+            </div>
+        </div>
+
+        <div class="metric-card" data-testid="card-federal">
+            <div class="metric-icon" style="background: #dbeafe;">
+                <i class="fas fa-landmark" style="color: #3b82f6;"></i>
+            </div>
+            <div>
+                <div class="metric-label">Federal</div>
+                <div class="metric-value" id="total-federal">R$ 0,00</div>
+            </div>
+        </div>
+
+        <div class="metric-card" data-testid="card-estadual">
+            <div class="metric-icon" style="background: #dcfce7;">
+                <i class="fas fa-map-marked-alt" style="color: #10b981;"></i>
+            </div>
+            <div>
+                <div class="metric-label">Estadual</div>
+                <div class="metric-value" id="total-estadual">R$ 0,00</div>
+            </div>
+        </div>
+
+        <div class="metric-card" data-testid="card-municipal">
+            <div class="metric-icon" style="background: #fef3c7;">
+                <i class="fas fa-city" style="color: #f59e0b;"></i>
+            </div>
+            <div>
+                <div class="metric-label">Municipal</div>
+                <div class="metric-value" id="total-municipal">R$ 0,00</div>
+            </div>
+        </div>
+
+        <div class="metric-card" data-testid="card-periodo">
+            <div class="metric-icon" style="background: #e0e7ff;">
+                <i class="fas fa-calendar" style="color: #6366f1;"></i>
+            </div>
+            <div>
+                <div class="metric-label">Período</div>
+                <div class="metric-value" id="periodo-exibido">-</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Tabela por Empresa -->
+    <div style="background: white; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); overflow: hidden; margin-bottom: 20px;">
+        <div style="padding: 20px; border-bottom: 1px solid #e5e7eb;">
+            <h3 style="margin: 0;">Impostos por Empresa</h3>
+            <p style="margin: 5px 0 0 0; font-size: 14px; color: #6b7280;">Consolidação por empresa no período</p>
+        </div>
+        <div style="overflow-x: auto;">
+            <table class="table" id="tabela-empresas" data-testid="table-empresas">
+                <thead>
+                    <tr>
+                        <th>Empresa</th>
+                        <th style="text-align: right;">Total de Impostos</th>
+                        <th style="text-align: center;">Ações</th>
+                    </tr>
+                </thead>
+                <tbody id="lista-empresas">
+                    <tr>
+                        <td colspan="3" style="text-align: center; padding: 40px;">
+                            <i class="fas fa-spinner fa-spin"></i> Carregando...
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Detalhamento por Empresa (expandido) -->
+    <div id="detalhamento-empresa" style="display: none; background: white; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); overflow: hidden; margin-bottom: 20px;">
+        <div style="padding: 20px; border-bottom: 1px solid #e5e7eb; display: flex; justify-content: space-between; align-items: center;">
+            <h3 style="margin: 0;">Detalhamento - <span id="empresa-detalhada"></span></h3>
+            <button class="btn btn-sm btn-secondary" onclick="fecharDetalhamento()" data-testid="button-fechar-detalhamento">
+                <i class="fas fa-times"></i> Fechar
+            </button>
+        </div>
+        <div style="overflow-x: auto;">
+            <table class="table" data-testid="table-detalhamento">
+                <thead>
+                    <tr>
+                        <th>Cliente</th>
+                        <th>Produto/Serviço</th>
+                        <th>Imposto</th>
+                        <th style="text-align: right;">Alíquota</th>
+                        <th>Tipo</th>
+                        <th style="text-align: right;">Total</th>
+                    </tr>
+                </thead>
+                <tbody id="lista-detalhamento">
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<script src="/static/js/admin_rateio_impostos.js"></script>
+
+<style>
+.metric-card {
+    background: white;
+    border-radius: 8px;
+    padding: 20px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    display: flex;
+    align-items: center;
+    gap: 15px;
+}
+
+.metric-icon {
+    width: 48px;
+    height: 48px;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 24px;
+}
+
+.metric-label {
+    font-size: 0.875rem;
+    color: #6b7280;
+    margin-bottom: 5px;
+}
+
+.metric-value {
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: #111827;
+}
+</style>
+{% endblock %}
