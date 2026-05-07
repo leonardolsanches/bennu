@@ -40,13 +40,15 @@ async def get_current_user(request: Request, db: Session = Depends(get_db)):
     """
     user_claims = request.session.get('user_claims')
 
-    # 🔧 MODO DESENVOLVIMENTO: Se OAuth não configurado, usar usuário padrão
-    if not user_claims and (client_id == "fake-client-id" or client_secret == "fake-client-secret"):
+    # 🔧 MODO DESENVOLVIMENTO: bypass SOMENTE em ambiente local/dev explícito
+    # NUNCA ativar em produção mesmo que as variáveis OAuth não estejam configuradas
+    is_dev_mode = os.getenv('ENVIRONMENT', 'production').lower() in ('development', 'dev', 'local')
+    oauth_not_configured = (client_id == "fake-client-id" or client_secret == "fake-client-secret")
+
+    if not user_claims and is_dev_mode and oauth_not_configured:
         print("🔧 DESENVOLVIMENTO: OAuth não configurado, usando usuário padrão admin@bennu.com")
-        # Usar usuário admin padrão
         user = db.query(User).filter(User.email == 'admin@bennu.com').first()
         if user:
-            # 🔒 SEGURANÇA: Configurar contexto de tenant no banco para RLS
             if user.empresa_id:
                 try:
                     from sqlalchemy import text
@@ -56,10 +58,10 @@ async def get_current_user(request: Request, db: Session = Depends(get_db)):
             return user
         else:
             print("❌ ERRO: Usuário admin padrão não encontrado")
-            raise HTTPException(status_code=500, detail={"message": "Default user not found"})
+            raise HTTPException(status_code=500, detail="Default user not found")
 
     if not user_claims:
-        raise HTTPException(status_code=401, detail={"message": "Unauthorized"})
+        raise HTTPException(status_code=401, detail="Unauthorized")
 
     # Buscar usuário pelo external_auth_id (OAuth sub) com retry
     external_auth_id = user_claims.get('sub')
@@ -75,12 +77,12 @@ async def get_current_user(request: Request, db: Session = Depends(get_db)):
             user = db.query(User).filter(User.external_auth_id == external_auth_id).first()
         except Exception as retry_error:
             print(f"Erro no retry SSL: {retry_error}")
-            raise HTTPException(status_code=500, detail={"message": "Database connection error"})
+            raise HTTPException(status_code=500, detail="Database connection error")
         finally:
             db.close()
 
     if not user:
-        raise HTTPException(status_code=401, detail={"message": "User not found"})
+        raise HTTPException(status_code=401, detail="User not found")
 
     # 🔒 SEGURANÇA: Configurar contexto de tenant no banco para RLS
     if user.empresa_id:

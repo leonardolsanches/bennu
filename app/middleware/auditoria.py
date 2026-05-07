@@ -1,15 +1,19 @@
 """
 Middleware de Auditoria - Bennu Finance
-Rastreia automaticamente acessos, ações e uso do sistema
+Rastreia automaticamente acessos, ações e uso do sistema.
+
+IMPORTANTE: Implementado como ASGI puro (sem BaseHTTPMiddleware) para evitar
+o deadlock conhecido do Starlette 0.42+ com call_next em picos de tráfego.
 """
-from fastapi import Request, Response
-from starlette.middleware.base import BaseHTTPMiddleware
-from starlette.responses import JSONResponse
+from starlette.types import ASGIApp, Receive, Scope, Send
 from sqlalchemy.orm import Session
+from sqlalchemy import text
 from datetime import datetime
 from typing import Optional
+import asyncio
 import json
 import logging
+import traceback as tb_module
 
 from app.models.auditoria import LogAcao, LogAcesso, SessaoUsuario, TipoAcao
 from app.models.users import User
@@ -21,12 +25,13 @@ logger = logging.getLogger(__name__)
 _user_id_cache = {}
 
 
-class AuditoriaMiddleware(BaseHTTPMiddleware):
+class AuditoriaMiddleware:
     """
-    Middleware para rastrear automaticamente todas as ações e acessos no sistema
+    Middleware ASGI puro para rastrear ações e acessos no sistema.
+    Convertido de BaseHTTPMiddleware para evitar deadlock no Starlette 0.42+
+    que causava quedas aleatórias da aplicação em picos de tráfego.
     """
-    
-    # Rotas que não devem ser auditadas (assets, estáticos, etc)
+
     ROTAS_IGNORADAS = [
         "/static/",
         "/favicon.ico",
@@ -36,8 +41,7 @@ class AuditoriaMiddleware(BaseHTTPMiddleware):
         "/redoc",
         "/openapi.json"
     ]
-    
-    # Mapeamento de métodos HTTP para tipos de ação
+
     METODO_PARA_ACAO = {
         "GET": TipoAcao.VIEW,
         "POST": TipoAcao.CREATE,
@@ -45,87 +49,7 @@ class AuditoriaMiddleware(BaseHTTPMiddleware):
         "PATCH": TipoAcao.UPDATE,
         "DELETE": TipoAcao.DELETE
     }
-    
-    async def dispatch(self, request: Request, call_next):
-        # Ignorar rotas estáticas
-        if any(request.url.path.startswith(rota) for rota in self.ROTAS_IGNORADAS):
-            return await call_next(request)
-        
-        # Capturar informações da requisição
-        ip_address = request.client.host if request.client else None
-        user_agent = request.headers.get("user-agent")
-        rota = request.url.path
-        metodo = request.method
-        
-        # Obter usuário e sessão de auditoria (se existir)
-        user_id = None
-        sessao_id = None
-        user_email = None
-        try:
-            # Tentar obter user_id de múltiplas fontes
-            if hasattr(request, 'session'):
-                # Primeira opção: user_id diretamente na sessão
-                user_id = request.session.get('user_id')
-                
-                # Se não encontrou, tentar obter de user_claims
-                if not user_id:
-                    user_claims = request.session.get('user_claims')
-                    if user_claims and isinstance(user_claims, dict):
-                        # Tentar extrair user_id via lookup de email/username
-                        email = user_claims.get('email')
-                        if email:
-                            user_email = email
-                            # Buscar user_id pelo email no banco (com cache)
-                            user_id = self._get_user_id_by_email(email)
-                
-                # Obter sessão de auditoria
-                sessao_id = request.session.get('audit_session_id')
-        except Exception as e:
-            logger.error(f"Erro ao obter user_id/sessao_id: {e}")
-        
-        # Processar requisição
-        response = await call_next(request)
-        
-        # Registrar apenas se for uma API route que modifica dados
-        if rota.startswith("/api/") and metodo in ["POST", "PUT", "PATCH", "DELETE"]:
-            try:
-                self._registrar_acao(
-                    user_id=user_id,
-                    sessao_id=sessao_id,
-                    metodo=metodo,
-                    rota=rota,
-                    ip_address=ip_address,
-                    status_code=response.status_code
-                )
-            except Exception as e:
-                logger.error(f"Erro ao registrar ação de auditoria: {e}")
-        
-        return response
-    
-    def _get_user_id_by_email(self, email: str) -> Optional[int]:
-        """Busca user_id pelo email, com cache para performance"""
-        global _user_id_cache
-        
-        # Verificar cache
-        if email in _user_id_cache:
-            return _user_id_cache[email]
-        
-        db = None
-        try:
-            db = SessionLocal()
-            user = db.query(User).filter(User.email == email).first()
-            if user:
-                _user_id_cache[email] = user.id
-                return user.id
-        except Exception as e:
-            logger.error(f"Erro ao buscar user_id por email: {e}")
-        finally:
-            if db:
-                db.close()
-        
-        return None
-    
-    # Mapeamento de entidades para nomes legíveis em português
+
     ENTIDADE_NOMES = {
         "transacoes": "transação",
         "categorias-contabeis": "categoria contábil",
@@ -142,14 +66,122 @@ class AuditoriaMiddleware(BaseHTTPMiddleware):
         "planejamento": "planejamento orçamentário",
         "users": "usuário"
     }
-    
+
     ACAO_VERBOS = {
         "POST": "Criou",
         "PUT": "Atualizou",
         "PATCH": "Atualizou",
         "DELETE": "Removeu"
     }
-    
+
+    def __init__(self, app: ASGIApp):
+        self.app = app
+
+    async def __call__(self, scope: Scope, receive: Receive, send: Send):
+        if scope["type"] != "http":
+            await self.app(scope, receive, send)
+            return
+
+        path = scope.get("path", "")
+
+        # Ignorar rotas estáticas/health sem nenhum processamento adicional
+        if any(path.startswith(r) for r in self.ROTAS_IGNORADAS):
+            await self.app(scope, receive, send)
+            return
+
+        method = scope.get("method", "GET")
+
+        # IP do cliente
+        try:
+            client = scope.get("client")
+            ip_address = client[0] if client else None
+        except Exception:
+            ip_address = None
+
+        # User-Agent
+        try:
+            headers = dict(scope.get("headers", []))
+            user_agent = headers.get(b"user-agent", b"").decode("utf-8", errors="ignore") or None
+        except Exception:
+            user_agent = None
+
+        # Usuário e sessão — lidos de scope["session"] populado pelo SessionMiddleware
+        user_id = None
+        sessao_id = None
+        email_para_lookup = None
+        try:
+            session = scope.get("session", {})
+            raw_uid = session.get("user_id")
+            if raw_uid and isinstance(raw_uid, int):
+                user_id = raw_uid
+
+            if not user_id:
+                user_claims = session.get("user_claims")
+                if user_claims and isinstance(user_claims, dict):
+                    email = user_claims.get("email")
+                    if email and isinstance(email, str):
+                        email_para_lookup = email
+
+            sessao_id = session.get("audit_session_id")
+            if sessao_id and not isinstance(sessao_id, int):
+                sessao_id = None
+        except Exception as e:
+            logger.error(f"AuditoriaMiddleware: erro ao obter user_id/sessao_id: {e}")
+
+        # Lookup do user_id por email — executado em thread pool para não bloquear o event loop
+        if not user_id and email_para_lookup:
+            try:
+                user_id = await asyncio.to_thread(self._get_user_id_by_email, email_para_lookup)
+            except Exception as e:
+                logger.error(f"AuditoriaMiddleware: erro no lookup de user_id: {e}")
+
+        # Capturar status code da resposta via send_wrapper
+        status_code = [200]
+
+        async def send_wrapper(message):
+            if message["type"] == "http.response.start":
+                status_code[0] = message.get("status", 200)
+            await send(message)
+
+        # Processar requisição — NUNCA bloqueia, sempre repassa
+        try:
+            await self.app(scope, receive, send_wrapper)
+        except Exception as e:
+            logger.error(f"AuditoriaMiddleware: erro na requisição {method} {path}: {e}\n{tb_module.format_exc()}")
+            raise
+
+        # Registrar apenas rotas de API que modificam dados
+        # Executado em thread pool (fire-and-forget) para não bloquear o event loop
+        if path.startswith("/api/") and method in ["POST", "PUT", "PATCH", "DELETE"]:
+            try:
+                loop = asyncio.get_event_loop()
+                loop.run_in_executor(
+                    None,
+                    self._registrar_acao,
+                    user_id, sessao_id, method, path, ip_address, status_code[0]
+                )
+            except Exception as e:
+                logger.error(f"AuditoriaMiddleware: erro ao agendar registro de ação: {e}")
+
+    def _get_user_id_by_email(self, email: str) -> Optional[int]:
+        """Busca user_id pelo email, com cache para performance"""
+        global _user_id_cache
+        if email in _user_id_cache:
+            return _user_id_cache[email]
+        db = None
+        try:
+            db = SessionLocal()
+            user = db.query(User).filter(User.email == email).first()
+            if user:
+                _user_id_cache[email] = user.id
+                return user.id
+        except Exception as e:
+            logger.error(f"Erro ao buscar user_id por email: {e}")
+        finally:
+            if db:
+                db.close()
+        return None
+
     def _registrar_acao(
         self,
         user_id: Optional[int],
@@ -160,35 +192,21 @@ class AuditoriaMiddleware(BaseHTTPMiddleware):
         status_code: int
     ):
         """Registra uma ação no log de auditoria"""
+        # Pré-calcular dados antes do bloco db para usar no retry
+        acao = self.METODO_PARA_ACAO.get(metodo, TipoAcao.VIEW)
+        partes = rota.strip("/").split("/")
+        entidade = partes[1] if len(partes) > 1 else "desconhecido"
+        entidade_id = int(partes[2]) if len(partes) > 2 and partes[2].isdigit() else None
+        verbo = self.ACAO_VERBOS.get(metodo, metodo)
+        nome_entidade = self.ENTIDADE_NOMES.get(entidade, entidade)
+        if 200 <= status_code < 300:
+            descricao = f"{verbo} {nome_entidade} #{entidade_id}" if entidade_id else f"{verbo} {nome_entidade}"
+        else:
+            descricao = f"Erro ao processar {nome_entidade} (Status {status_code})"
+
         db = None
         try:
             db = SessionLocal()
-            
-            # Determinar tipo de ação
-            acao = self.METODO_PARA_ACAO.get(metodo, TipoAcao.VIEW)
-            
-            # Extrair entidade da rota (ex: /api/transacoes/123 -> transacoes)
-            partes = rota.strip("/").split("/")
-            entidade = partes[1] if len(partes) > 1 else "desconhecido"
-            entidade_id = None
-            
-            # Tentar extrair ID da entidade
-            if len(partes) > 2 and partes[2].isdigit():
-                entidade_id = int(partes[2])
-            
-            # Criar descrição legível
-            verbo = self.ACAO_VERBOS.get(metodo, metodo)
-            nome_entidade = self.ENTIDADE_NOMES.get(entidade, entidade)
-            
-            if status_code >= 200 and status_code < 300:
-                if entidade_id:
-                    descricao = f"{verbo} {nome_entidade} #{entidade_id}"
-                else:
-                    descricao = f"{verbo} {nome_entidade}"
-            else:
-                descricao = f"Erro ao processar {nome_entidade} (Status {status_code})"
-            
-            # Criar log de ação
             log_acao = LogAcao(
                 user_id=user_id,
                 sessao_id=sessao_id,
@@ -199,12 +217,34 @@ class AuditoriaMiddleware(BaseHTTPMiddleware):
                 ip_address=ip_address,
                 rota=rota
             )
-            
             db.add(log_acao)
             db.commit()
-            
         except Exception as e:
-            logger.error(f"Erro ao salvar log de ação: {e}")
+            err_str = str(e)
+            if ("UniqueViolation" in err_str or "duplicate key" in err_str or "unique constraint" in err_str) and db:
+                try:
+                    db.rollback()
+                    db.execute(text(
+                        "SELECT setval(pg_get_serial_sequence('logs_acoes', 'id'), "
+                        "COALESCE((SELECT MAX(id) FROM logs_acoes), 1), true)"
+                    ))
+                    db.commit()
+                    db.add(LogAcao(
+                        user_id=user_id,
+                        sessao_id=sessao_id,
+                        acao=acao,
+                        entidade=entidade,
+                        entidade_id=entidade_id,
+                        descricao=descricao,
+                        ip_address=ip_address,
+                        rota=rota
+                    ))
+                    db.commit()
+                    logger.info("Log de ação salvo após auto-correção de sequence.")
+                except Exception as e2:
+                    logger.error(f"Erro ao salvar log de ação (retry): {e2}")
+            else:
+                logger.error(f"Erro ao salvar log de ação: {e}")
         finally:
             if db:
                 db.close()
@@ -220,9 +260,7 @@ def registrar_acesso(
     sucesso: bool = True,
     mensagem: Optional[str] = None
 ) -> LogAcesso:
-    """
-    Registra um acesso (login/logout) no sistema
-    """
+    """Registra um acesso (login/logout) no sistema"""
     log_acesso = LogAcesso(
         user_id=user_id,
         email=email,
@@ -245,9 +283,7 @@ def criar_sessao(
     ip_address: Optional[str] = None,
     user_agent: Optional[str] = None
 ) -> SessaoUsuario:
-    """
-    Cria uma nova sessão de usuário
-    """
+    """Cria uma nova sessão de usuário"""
     sessao = SessaoUsuario(
         user_id=user_id,
         session_token=session_token,
@@ -266,39 +302,29 @@ def atualizar_atividade_sessao(
     sessao_id: int,
     pagina: Optional[str] = None
 ):
-    """
-    Atualiza a última atividade da sessão e adiciona página visitada
-    """
+    """Atualiza a última atividade da sessão e adiciona página visitada"""
     sessao = db.query(SessaoUsuario).filter(SessaoUsuario.id == sessao_id).first()
     if sessao:
         sessao.ultima_atividade = datetime.now()
-        
-        # Adicionar página à lista de páginas visitadas
         if pagina:
             try:
                 paginas = json.loads(sessao.paginas_visitadas or "[]")
                 paginas.append({"pagina": pagina, "timestamp": datetime.now().isoformat()})
-                sessao.paginas_visitadas = json.dumps(paginas[-100:])  # Manter últimas 100 páginas
-            except:
+                sessao.paginas_visitadas = json.dumps(paginas[-100:])
+            except Exception:
                 pass
-        
         db.commit()
 
 
 def encerrar_sessao(db: Session, sessao_id: int):
-    """
-    Encerra uma sessão e calcula a duração
-    """
+    """Encerra uma sessão e calcula a duração"""
     sessao = db.query(SessaoUsuario).filter(SessaoUsuario.id == sessao_id).first()
     if sessao and sessao.ativa:
         sessao.fim = datetime.now()
         sessao.ativa = False
-        
-        # Calcular duração em segundos
         if sessao.inicio:
             duracao = (sessao.fim - sessao.inicio).total_seconds()
             sessao.duracao_segundos = int(duracao)
-        
         db.commit()
 
 
@@ -314,9 +340,7 @@ def registrar_acao_manual(
     ip_address: Optional[str] = None,
     rota: Optional[str] = None
 ) -> LogAcao:
-    """
-    Registra manualmente uma ação específica (para casos especiais)
-    """
+    """Registra manualmente uma ação específica (para casos especiais)"""
     log_acao = LogAcao(
         user_id=user_id,
         acao=acao,

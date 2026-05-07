@@ -1,6 +1,6 @@
 """
 Configuração do banco de dados PostgreSQL
-Usa SQLAlchemy 2.0 + psycopg2 para conectar ao Neon
+Usa SQLAlchemy 2.0 + psycopg2 para conectar ao Neon ou AWS RDS
 """
 from sqlalchemy import create_engine
 from sqlalchemy.ext.declarative import declarative_base
@@ -10,28 +10,31 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-# URL do banco Neon (mesma do Node.js)
 DATABASE_URL = os.getenv("DATABASE_URL") or os.getenv("NEON_DATABASE_URL")
 
 if not DATABASE_URL:
     print("❌ FATAL: DATABASE_URL não encontrada. Configure DATABASE_URL ou NEON_DATABASE_URL nas variáveis de ambiente.")
-    # Placeholder para não quebrar o import — qualquer acesso ao DB falhará com erro claro
     DATABASE_URL = "postgresql://localhost/bennu_finance_missing_db_url"
 
 _is_neon = "neon" in DATABASE_URL or "neon.tech" in DATABASE_URL
+_is_rds  = "amazonaws.com" in DATABASE_URL
+
+# Sempre incluir connect_timeout para evitar hang no health check do ALB
+connect_args: dict = {
+    "connect_timeout": 10,
+    "application_name": "bennu_finance_python",
+}
+if _is_neon or _is_rds:
+    connect_args["sslmode"] = "require"
 
 engine = create_engine(
     DATABASE_URL,
-    connect_args={
-        "sslmode": "require",
-        "connect_timeout": 10,
-        "application_name": "bennu_finance_python"
-    } if _is_neon else {},
+    connect_args=connect_args,
     pool_pre_ping=True,
-    pool_recycle=300,  # Renovar conexões a cada 5 minutos
+    pool_recycle=300,
     pool_size=10,
     max_overflow=20,
-    echo=False
+    echo=False,
 )
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base = declarative_base()
