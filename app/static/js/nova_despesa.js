@@ -106,6 +106,43 @@ class NovaDespesaController {
 
             setVal('empresa', t.empresa_id);
             setVal('fornecedor', t.fornecedor_id);
+
+            // Se filho de desmembramento sem fornecedor, buscar do pai e sugerir
+            if (!t.fornecedor_id && t.parent_id && t.tipo_filho === 'split') {
+                try {
+                    const paiRes = await fetch(`/api/transacoes/${t.parent_id}`, {
+                        credentials: 'include',
+                        headers: { 'Accept': 'application/json' }
+                    });
+                    if (paiRes.ok) {
+                        const pai = await paiRes.json();
+                        if (pai.fornecedor_id) {
+                            setVal('fornecedor', pai.fornecedor_id);
+                            const fornecedorEl = document.getElementById('fornecedor');
+                            if (fornecedorEl) {
+                                // Pegar o nome do fornecedor selecionado no select
+                                const selectedOption = fornecedorEl.options[fornecedorEl.selectedIndex];
+                                const nomeFornecedor = selectedOption && selectedOption.text !== 'Selecione...'
+                                    ? selectedOption.text
+                                    : `ID ${pai.fornecedor_id}`;
+                                // Posicionar o hint no .form-field (pai do select-with-add), não dentro do flex row
+                                const formField = fornecedorEl.closest('.form-field') || fornecedorEl.parentNode.parentNode;
+                                // Remover hint anterior se existir
+                                const existente = document.getElementById('fornecedor-sugestao-hint');
+                                if (existente) existente.remove();
+                                const hint = document.createElement('div');
+                                hint.id = 'fornecedor-sugestao-hint';
+                                hint.style.cssText = 'color:#92400e;background:#fef3c7;border:1px solid #f59e0b;border-radius:4px;padding:4px 8px;margin-top:4px;font-size:0.7rem;line-height:1.3;';
+                                hint.innerHTML = `<i class="fas fa-info-circle" style="color:#d97706;margin-right:4px;"></i><strong>Sugestão do registro pai:</strong> ${nomeFornecedor} — confirme antes de salvar`;
+                                formField.appendChild(hint);
+                            }
+                        }
+                    }
+                } catch (err) {
+                    console.warn('⚠️ Não foi possível buscar fornecedor do pai:', err);
+                }
+            }
+
             setVal('cliente', t.cliente_id);
             setVal('centro_custo', t.centro_custo_id);
 
@@ -447,11 +484,10 @@ class NovaDespesaController {
             });
         }
 
-        // Quando centro de custo muda, atualizar categorias contábeis filtradas e buscar sugestão
+        // Quando centro de custo muda, buscar sugestão de histórico
         const centroCusto = document.getElementById('centro_custo');
         if (centroCusto) {
             centroCusto.addEventListener('change', () => {
-                this.loadCategoriasContabeisPorCentro(centroCusto.value);
                 if (centroCusto.value) {
                     this.loadHistoricoSugestao();
                 }
@@ -533,41 +569,51 @@ class NovaDespesaController {
         }
     }
 
-    async aplicarSugestao(sugestao) {
-        const setIfEmpty = (id, value) => {
+    async aplicarSugestao(sugestao, forcar = false) {
+        const aplicarCampo = (id, value) => {
             const el = document.getElementById(id);
-            if (el && !el.value && value) {
-                el.value = value;
-                return true;
+            if (!el || !value) return false;
+            if (!forcar && el.value) return false;
+            if (el.tagName === 'SELECT') {
+                const existe = Array.from(el.options).some(o => o.value == value);
+                if (!existe) return false;
             }
-            return false;
+            el.value = value;
+            return true;
         };
 
-        setIfEmpty('descricao', sugestao.descricao);
+        aplicarCampo('descricao', sugestao.descricao);
+        aplicarCampo('centro_custo', sugestao.centro_custo_id);
 
-        if (setIfEmpty('centro_custo', sugestao.centro_custo_id)) {
-            document.getElementById('centro_custo').dispatchEvent(new Event('change'));
-            await new Promise(r => setTimeout(r, 300));
+        if (aplicarCampo('categoria_contabil', sugestao.categoria_contabil_id)) {
+            await this.loadSubcategories('subcategoria_contabil', sugestao.categoria_contabil_id, 'contabil');
+            aplicarCampo('subcategoria_contabil', sugestao.subcategoria_contabil_id);
         }
 
-        if (setIfEmpty('categoria_contabil', sugestao.categoria_contabil_id)) {
-            document.getElementById('categoria_contabil').dispatchEvent(new Event('change'));
-            await new Promise(r => setTimeout(r, 300));
+        if (aplicarCampo('categoria_gerencial', sugestao.categoria_gerencial_id)) {
+            await this.loadSubcategories('subcategoria_gerencial', sugestao.categoria_gerencial_id, 'gerencial');
+            aplicarCampo('subcategoria_gerencial', sugestao.subcategoria_gerencial_id);
         }
-        setIfEmpty('subcategoria_contabil', sugestao.subcategoria_contabil_id);
 
-        if (setIfEmpty('categoria_gerencial', sugestao.categoria_gerencial_id)) {
-            document.getElementById('categoria_gerencial').dispatchEvent(new Event('change'));
-            await new Promise(r => setTimeout(r, 300));
-        }
-        setIfEmpty('subcategoria_gerencial', sugestao.subcategoria_gerencial_id);
+        aplicarCampo('conta_contabil', sugestao.conta_contabil_id);
 
-        setIfEmpty('conta_contabil', sugestao.conta_contabil_id);
+        if (forcar) this.mostrarBadgePreenchimento();
+        console.log(`✅ Sugestão aplicada (forcar=${forcar})`);
+    }
 
-        console.log('✅ Sugestão aplicada nos campos vazios');
+    mostrarBadgePreenchimento() {
+        const anterior = document.getElementById('badge-preenchimento-auto');
+        if (anterior) anterior.remove();
+        const badge = document.createElement('div');
+        badge.id = 'badge-preenchimento-auto';
+        badge.style.cssText = 'position:fixed;bottom:24px;right:24px;background:#059669;color:#fff;padding:9px 16px;border-radius:7px;font-size:13px;z-index:9999;box-shadow:0 3px 10px rgba(0,0,0,0.18);display:flex;align-items:center;gap:7px;';
+        badge.innerHTML = '<span style="font-size:15px;">✓</span> Pré-preenchido com dados do último lançamento';
+        document.body.appendChild(badge);
+        setTimeout(() => badge.remove(), 4000);
     }
 
     async loadFornecedorHistory(fornecedorId) {
+        if (this.editMode) return;
         try {
             const empresa = document.getElementById('empresa')?.value;
             let url = `/api/transacoes/historico-sugestao?tipo=despesa&fornecedor_id=${fornecedorId}`;
@@ -582,44 +628,11 @@ class NovaDespesaController {
                 const data = await response.json();
                 if (data.found && data.sugestao) {
                     console.log('📜 Histórico encontrado para fornecedor:', data.sugestao);
-                    await this.aplicarSugestao(data.sugestao);
+                    await this.aplicarSugestao(data.sugestao, true);
                 }
             }
         } catch (error) {
             console.error('❌ Erro ao carregar histórico do fornecedor:', error);
-        }
-    }
-
-    async loadCategoriasContabeisPorCentro(centroCustoId) {
-        const select = document.getElementById('categoria_contabil');
-        if (!select) return;
-
-        // Limpar opções existentes
-        select.innerHTML = '<option value="">Selecione...</option>';
-
-        if (!centroCustoId) return;
-
-        try {
-            const response = await fetch(`/api/categorias-contabeis?centro_custo_id=${centroCustoId}`, {
-                credentials: 'include',
-                headers: { 'Accept': 'application/json' }
-            });
-
-            if (response.ok) {
-                const categorias = await response.json();
-                const items = Array.isArray(categorias) ? categorias : (categorias.items || []);
-                
-                items.forEach(cat => {
-                    const option = document.createElement('option');
-                    option.value = cat.id;
-                    option.textContent = cat.nome;
-                    select.appendChild(option);
-                });
-
-                console.log(`✅ Carregadas ${items.length} categorias contábeis para centro de custo ${centroCustoId}`);
-            }
-        } catch (error) {
-            console.error('❌ Erro ao carregar categorias contábeis:', error);
         }
     }
 

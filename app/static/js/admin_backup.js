@@ -86,70 +86,89 @@ async function importarBackup() {
     try {
         const fileInput = document.getElementById('arquivo-backup');
         const file = fileInput.files[0];
-        
+        const limparDestino = document.getElementById('limpar-destino')?.checked || false;
+
         if (!file) {
             mostrarMensagem('Por favor, selecione um arquivo de backup', 'error');
             return;
         }
-        
+
         if (!file.name.endsWith('.json')) {
             mostrarMensagem('Arquivo inválido. Selecione um arquivo .json', 'error');
             return;
         }
-        
-        // Confirmar ação
-        if (!confirm('ATENÇÃO: A importação pode sobrescrever dados existentes. Tem certeza que deseja continuar?')) {
-            return;
+
+        // Confirmação mais forte quando modo migração completa
+        if (limparDestino) {
+            const confirmMsg = '⚠️ MIGRAÇÃO COMPLETA ATIVADA\n\n'
+                + 'TODOS os dados atuais deste banco serão APAGADOS permanentemente '
+                + 'antes de importar o backup.\n\n'
+                + 'Esta operação é IRREVERSÍVEL.\n\n'
+                + 'Confirma a limpeza completa e reimportação?';
+            if (!confirm(confirmMsg)) return;
+        } else {
+            if (!confirm('ATENÇÃO: A importação pode sobrescrever dados existentes. Confirma?')) {
+                return;
+            }
         }
-        
+
         // Mostrar progresso
         document.getElementById('progresso-import').style.display = 'block';
-        document.getElementById('barra-progresso').style.width = '50%';
-        document.getElementById('status-import').textContent = 'Processando arquivo...';
-        
+        document.getElementById('barra-progresso').style.width = '20%';
+        document.getElementById('status-import').textContent = limparDestino
+            ? 'Limpando destino e importando...'
+            : 'Processando arquivo...';
+
         const formData = new FormData();
         formData.append('file', file);
-        
+        formData.append('limpar_destino', limparDestino ? 'true' : 'false');
+
+        document.getElementById('barra-progresso').style.width = '50%';
+
         const response = await fetch('/api/admin/backup/import', {
             method: 'POST',
             body: formData
         });
-        
+
         if (!response.ok) {
             const error = await response.json();
             throw new Error(error.detail || 'Erro ao importar backup');
         }
-        
+
         const resultado = await response.json();
-        
-        // Atualizar progresso
+
         document.getElementById('barra-progresso').style.width = '100%';
         document.getElementById('status-import').textContent = 'Importação concluída!';
-        
-        // Montar mensagem de resultado
-        let mensagem = `Importação concluída!\n\n`;
+
+        const modo = resultado.modo === 'migracao_completa'
+            ? '🔄 Modo: Migração Completa (destino limpo + reimportação)\n'
+            : '📥 Modo: Incremental (UPSERT)\n';
+
+        let mensagem = `Importação concluída!\n\n${modo}\n`;
         mensagem += `✅ Registros importados: ${resultado.registros_importados}\n\n`;
-        
+
         if (resultado.sucesso.length > 0) {
-            mensagem += `Tabelas processadas com sucesso:\n`;
+            mensagem += `Tabelas:\n`;
             resultado.sucesso.forEach(s => mensagem += `  • ${s}\n`);
         }
-        
+
         if (resultado.erros.length > 0) {
-            mensagem += `\n❌ Erros encontrados:\n`;
+            mensagem += `\n❌ Erros:\n`;
             resultado.erros.forEach(e => mensagem += `  • ${e}\n`);
         }
-        
+
         alert(mensagem);
-        
-        // Recarregar lista de tabelas
+
         setTimeout(() => {
             carregarTabelasStatus();
             document.getElementById('progresso-import').style.display = 'none';
             document.getElementById('barra-progresso').style.width = '0%';
             fileInput.value = '';
+            if (document.getElementById('limpar-destino')) {
+                document.getElementById('limpar-destino').checked = false;
+            }
         }, 2000);
-        
+
     } catch (error) {
         console.error('Erro ao importar backup:', error);
         mostrarMensagem(`Erro ao importar backup: ${error.message}`, 'error');

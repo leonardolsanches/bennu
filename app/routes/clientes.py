@@ -48,9 +48,9 @@ async def get_clientes(
                 TransacaoFinanceira.tipo == 'receita',
                 TransacaoFinanceira.competencia_ano == ano_atual,
                 TransacaoFinanceira.valor > 0
-            ).distinct().all()
+            ).order_by(Cliente.nome).distinct().all()
         else:
-            clientes = db.query(Cliente).all()
+            clientes = db.query(Cliente).order_by(Cliente.nome).all()
         
         return [
             {

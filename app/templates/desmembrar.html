@@ -38,6 +38,11 @@
                     <option value="lancamento">Lançamento</option>
                 </select>
                 <input type="month" id="filter-mes-ano" class="form-control" data-testid="input-filter-mes-ano" style="width: 110px;">
+                <select id="filter-status-desmembramento" class="form-control" data-testid="select-filter-status-desmembramento" style="width: 130px;">
+                    <option value="">Todos</option>
+                    <option value="com">Com desmembramento</option>
+                    <option value="sem">Sem desmembramento</option>
+                </select>
                 <input type="text" id="filter-busca" class="form-control" placeholder="Buscar..." data-testid="input-filter-busca" style="width: 120px;">
                 <button type="button" id="btn-filtrar" class="btn btn-primary" style="height: 22px;" data-testid="button-filtrar">
                     <i class="fas fa-search"></i>
@@ -68,7 +73,7 @@
                     <table id="desmembramento-table" class="advanced-table" style="width: 100%; border-collapse: collapse;">
                         <thead>
                             <tr style="background: #f9fafb; border-bottom: 1px solid #e5e7eb;">
-                                <th style="padding: 6px 8px; text-align: center; font-weight: 600; font-size: 0.65rem; color: #374151; width: 60px;">Ação</th>
+                                <th style="padding: 6px 8px; text-align: center; font-weight: 600; font-size: 0.65rem; color: #374151; width: 170px; min-width: 170px;">Ação</th>
                                 <th data-field="status_desmembramento" style="padding: 6px 8px; text-align: left; font-weight: 600; font-size: 0.65rem; color: #374151;">Status</th>
                                 <th data-field="empresa" style="padding: 6px 8px; text-align: left; font-weight: 600; font-size: 0.65rem; color: #374151;">Empresa</th>
                                 <th data-field="data_lancamento" style="padding: 6px 8px; text-align: center; font-weight: 600; font-size: 0.65rem; color: #374151;">Lanç.</th>
@@ -205,6 +210,9 @@
             <div class="form-actions" style="display: flex; gap: 8px; justify-content: center; margin-top: 12px; padding-top: 10px; border-top: 1px solid #e5e7eb;">
                 <button type="button" class="btn btn-secondary" onclick="cancelarDesmembramento()" data-testid="button-cancelar">
                     <i class="fas fa-times"></i> Cancelar
+                </button>
+                <button type="button" id="btn-excluir-desmembramento" class="btn btn-danger hidden" data-testid="button-excluir-desmembramento" onclick="desmembramentoManager.excluirDesmembramento()">
+                    <i class="fas fa-trash"></i> Excluir Desmembramento
                 </button>
                 <button type="button" id="btn-salvar" class="btn btn-primary" data-testid="button-salvar-desmembramento">
                     <i class="fas fa-save"></i> Salvar

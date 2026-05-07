@@ -150,7 +150,7 @@ async def listar_produtos_servicos(
     current_user = Depends(get_current_user)
 ):
     """Lista todos os serviços com clientes associados"""
-    produtos = db.query(ProdutoServico).all()
+    produtos = db.query(ProdutoServico).order_by(ProdutoServico.nome).all()
     
     result = []
     for produto in produtos:
@@ -311,7 +311,7 @@ async def listar_contas_contabeis(
     current_user = Depends(get_current_user) # User import added below
 ):
     """Lista todas as contas contábeis de todas as empresas"""
-    contas = db.query(ContaContabil).all()
+    contas = db.query(ContaContabil).order_by(ContaContabil.nome).all()
     return contas
 
 @router.get("/contas-contabeis/{conta_id}", response_model=ContaContabilResponse)
@@ -399,7 +399,7 @@ async def listar_contas_bancarias(
     current_user = Depends(get_current_user) # User import added below
 ):
     """Lista todas as contas bancárias de todas as empresas"""
-    contas = db.query(ContaBancaria).all()
+    contas = db.query(ContaBancaria).order_by(ContaBancaria.nome).all()
     return contas
 
 @router.get("/contas-bancarias/{conta_id}", response_model=ContaBancariaResponse)
@@ -645,7 +645,7 @@ async def listar_cartoes_credito(
     current_user = Depends(get_current_user) # User import added below
 ):
     """Lista todos os cartões de crédito de todas as empresas"""
-    cartoes = db.query(CartaoCredito).all()
+    cartoes = db.query(CartaoCredito).order_by(CartaoCredito.nome).all()
     return cartoes
 
 @router.get("/cartoes-credito/{cartao_id}", response_model=CartaoCreditoResponse)
@@ -873,7 +873,7 @@ async def listar_projetos(
     current_user = Depends(get_current_user)
 ):
     """Lista todos os projetos com clientes associados"""
-    projetos = db.query(Projeto).all()
+    projetos = db.query(Projeto).order_by(Projeto.nome).all()
     
     result = []
     for projeto in projetos:

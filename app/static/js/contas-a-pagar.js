@@ -23,32 +23,28 @@ function toggleTaxCols() {
 document.addEventListener('DOMContentLoaded', function() {
     console.log('💳 Inicializando página de Contas a Pagar...');
     inicializarFiltros();
-    carregarContas();
+    aplicarFiltros();   // carrega todas as contas sem filtro de data inicial
     console.log('✅ Página de Contas a Pagar carregada com sucesso!');
 });
 
 // Inicializar filtros
 function inicializarFiltros() {
-    // Popular campo de ano com ano corrente + passados + 5 futuros
+    // Popular anos (sem pré-selecionar — mostra todos por padrão)
     if (window.populateYearSelect) {
-        window.populateYearSelect('filter-ano', { includeAllOption: true, selectedYear: new Date().getFullYear() });
+        window.populateYearSelect('filter-ano', { includeAllOption: true });
     }
-    
+    // Sem pré-seleção de mês — exibe todas as contas ao abrir
+
     // Carregar fornecedores
     carregarFornecedores();
     
-    // Event listeners para filtros
-    const tipoDataEl = document.getElementById('filter-tipo-data');
-    if (tipoDataEl) tipoDataEl.addEventListener('change', aplicarFiltros);
-    document.getElementById('filter-ano').addEventListener('change', aplicarFiltros);
-    document.getElementById('filter-mes').addEventListener('change', aplicarFiltros);
-    document.getElementById('filter-status').addEventListener('change', aplicarFiltros);
-    document.getElementById('filter-fornecedor').addEventListener('change', aplicarFiltros);
-    // Filtro de descrição será aplicado apenas com o botão Buscar
+    // Event listeners
+    ['filter-tipo-data', 'filter-mes', 'filter-ano', 'filter-status', 'filter-fornecedor'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.addEventListener('change', aplicarFiltros);
+    });
     document.getElementById('filter-descricao').addEventListener('keypress', function(e) {
-        if (e.key === 'Enter') {
-            aplicarFiltros();
-        }
+        if (e.key === 'Enter') aplicarFiltros();
     });
 }
 
@@ -92,9 +88,11 @@ async function carregarContas() {
         console.log('💳 Carregando contas a pagar...');
         
         const params = new URLSearchParams();
-        params.append('tipo_data', filtrosAtivos.tipo_data || 'contabil');
-        if (filtrosAtivos.ano) params.append('ano', filtrosAtivos.ano);
+        // Tipo de data + mês + ano
+        if (filtrosAtivos.tipo_data) params.append('tipo_data', filtrosAtivos.tipo_data);
         if (filtrosAtivos.mes) params.append('mes', filtrosAtivos.mes);
+        if (filtrosAtivos.ano) params.append('ano', filtrosAtivos.ano);
+        // Outros filtros
         if (filtrosAtivos.status) params.append('status', filtrosAtivos.status);
         if (filtrosAtivos.fornecedor) params.append('fornecedor', filtrosAtivos.fornecedor);
         if (filtrosAtivos.descricao) params.append('descricao', filtrosAtivos.descricao);
@@ -297,24 +295,25 @@ function renderizarStatusBadge(status) {
 // Aplicar filtros
 function aplicarFiltros() {
     filtrosAtivos = {
-        tipo_data: document.getElementById('filter-tipo-data')?.value || 'contabil',
-        ano: document.getElementById('filter-ano').value,
-        mes: document.getElementById('filter-mes').value,
+        tipo_data: document.getElementById('filter-tipo-data')?.value || 'pagamento',
+        mes: document.getElementById('filter-mes')?.value || '',
+        ano: document.getElementById('filter-ano')?.value || '',
         status: document.getElementById('filter-status').value,
         fornecedor: document.getElementById('filter-fornecedor').value,
         descricao: document.getElementById('filter-descricao').value
     };
-    
     console.log('💳 Aplicando filtros:', filtrosAtivos);
     carregarContas();
 }
 
 // Limpar filtros
 function limparFiltros() {
-    const tipoDataEl = document.getElementById('filter-tipo-data');
-    if (tipoDataEl) tipoDataEl.selectedIndex = 0;
-    document.getElementById('filter-ano').selectedIndex = 0;
-    document.getElementById('filter-mes').selectedIndex = 0;
+    const tipoEl = document.getElementById('filter-tipo-data');
+    if (tipoEl) tipoEl.value = 'pagamento';
+    const mesEl = document.getElementById('filter-mes');
+    if (mesEl) mesEl.value = '';
+    const anoEl = document.getElementById('filter-ano');
+    if (anoEl) anoEl.value = '';
     document.getElementById('filter-status').selectedIndex = 0;
     document.getElementById('filter-fornecedor').selectedIndex = 0;
     document.getElementById('filter-descricao').value = '';

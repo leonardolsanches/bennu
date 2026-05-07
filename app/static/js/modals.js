@@ -285,6 +285,11 @@ async function loadExistingRecords(type, config, container) {
             headers: { 'Accept': 'application/json' }
         });
 
+        if (response.status === 401) {
+            container.innerHTML = '<div class="error">⚠️ Sessão expirada. <a href="/login" style="color:#1d4ed8;font-weight:bold;">Clique aqui para entrar novamente</a> e tente de novo.</div><hr class="section-divider">';
+            return;
+        }
+
         if (!response.ok) {
             throw new Error(`HTTP ${response.status}`);
         }
@@ -316,7 +321,7 @@ async function loadExistingRecords(type, config, container) {
 
     } catch (error) {
         console.error('Erro ao buscar registros:', error);
-        container.innerHTML = '<div class="error">❌ Erro ao carregar registros existentes</div><hr class="section-divider">';
+        container.innerHTML = '<div class="error">❌ Erro ao carregar registros. Recarregue a página e tente novamente.</div><hr class="section-divider">';
     }
 }
 
@@ -371,7 +376,7 @@ function generateFormFields(config, data, container) {
     formSection.className = 'form-section';
     formSection.innerHTML = `
         <div class="section-header">
-            <h3>📝 ${data ? 'Editar Registro' : 'Novo Registro'}</h3>
+            <h3>📝 ${(data && data.id) ? 'Editar Registro' : 'Novo Registro'}</h3>
         </div>
     `;
 
@@ -690,6 +695,11 @@ async function updateCategoryParentOptions(tipo) {
         const endpoint = tipo === 'contabil' ? '/api/categorias-contabeis' : '/api/categorias-gerenciais';
         const response = await fetch(endpoint, { credentials: 'include' });
 
+        if (response.status === 401) {
+            paiSelect.innerHTML = '<option value="">Sessão expirada — recarregue a página</option>';
+            return;
+        }
+
         if (response.ok) {
             const categorias = await response.json();
             const categoriaPai = categorias.filter(cat => !cat.pai_id); // Apenas categorias pai
@@ -706,11 +716,11 @@ async function updateCategoryParentOptions(tipo) {
             console.log(`✅ Carregadas ${categoriaPai.length} categorias ${tipo} como opções de pai`);
         } else {
             console.error('Erro ao buscar categorias:', response.status);
-            paiSelect.innerHTML = '<option value="">Erro ao carregar</option>';
+            paiSelect.innerHTML = '<option value="">Erro ao carregar — recarregue a página</option>';
         }
     } catch (error) {
         console.error('Erro ao carregar categorias pai:', error);
-        paiSelect.innerHTML = '<option value="">Erro ao carregar</option>';
+        paiSelect.innerHTML = '<option value="">Erro ao carregar — recarregue a página</option>';
     } finally {
         paiSelect.disabled = false;
     }
@@ -794,8 +804,10 @@ async function submitForm(event) {
 
     try {
         // Determinar método HTTP e URL
-        const method = window.currentModalData ? 'PUT' : 'POST';
-        const url = window.currentModalData 
+        // currentModalData pode conter só dados de inicialização (sem id) → POST
+        const isEdit = !!(window.currentModalData && window.currentModalData.id);
+        const method = isEdit ? 'PUT' : 'POST';
+        const url = isEdit
             ? `${config.endpoint}/${window.currentModalData.id}`
             : config.endpoint;
 
@@ -817,7 +829,7 @@ async function submitForm(event) {
 
             // Mostrar notificação de sucesso
             if (window.app && window.app.showNotification) {
-                const action = window.currentModalData ? 'atualizado' : 'criado';
+                const action = isEdit ? 'atualizado' : 'criado';
                 window.app.showNotification(`Registro ${action} com sucesso!`, 'success');
             }
 

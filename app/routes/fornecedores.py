@@ -44,7 +44,7 @@ async def get_fornecedores(
 ):
     """Lista fornecedores de todas as empresas"""
     try:
-        fornecedores = db.query(Fornecedor).all()
+        fornecedores = db.query(Fornecedor).order_by(Fornecedor.nome).all()
         
         return [
             {

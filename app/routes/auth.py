@@ -9,9 +9,46 @@ from app.auth.oauth import oauth, get_current_user, upsert_user_from_claims
 from app.models import User
 from app.models.auditoria import TipoAcao
 from app.middleware.auditoria import registrar_acesso, criar_sessao, encerrar_sessao
+from datetime import datetime, timedelta
 import os
 
 router = APIRouter()
+
+# ─── CONTROLE DE USUÁRIOS CONECTADOS (in-memory, heartbeat-based) ───────────
+# {user_id: {"nome": str, "email": str, "last_seen": datetime}}
+_usuarios_ativos: dict = {}
+_TIMEOUT_MINUTOS = 5  # considera desconectado após 5 min sem heartbeat
+
+
+@router.post("/heartbeat")
+async def heartbeat(
+    request: Request,
+    current_user = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Registra presença do usuário. Chamado a cada 60s pelo frontend."""
+    _usuarios_ativos[current_user.id] = {
+        "nome": current_user.nome,
+        "email": current_user.email,
+        "last_seen": datetime.utcnow()
+    }
+    return {"ok": True}
+
+
+@router.get("/usuarios-conectados")
+async def usuarios_conectados(
+    request: Request,
+    current_user = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Retorna lista de usuários ativos nos últimos 5 minutos."""
+    threshold = datetime.utcnow() - timedelta(minutes=_TIMEOUT_MINUTOS)
+    ativos = [
+        {"nome": v["nome"], "email": v["email"]}
+        for v in _usuarios_ativos.values()
+        if v["last_seen"] >= threshold
+    ]
+    return {"count": len(ativos), "usuarios": ativos}
 
 @router.get("/auth/user")
 async def api_get_current_user(request: Request, db: Session = Depends(get_db)):
@@ -29,7 +66,7 @@ async def api_get_current_user(request: Request, db: Session = Depends(get_db)):
             "papel": user.papel
         }
     except HTTPException:
-        raise HTTPException(status_code=401, detail={"message": "Unauthorized"})
+        raise HTTPException(status_code=401, detail="Unauthorized")
 
 @router.post("/login")
 async def login(request: Request, db: Session = Depends(get_db)):

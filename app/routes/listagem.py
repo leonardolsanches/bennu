@@ -170,8 +170,7 @@ async def listagem_page(
     import time
     cache_bust = int(time.time())
 
-    return templates.TemplateResponse("listagem.html", {
-        "request": request,
+    return templates.TemplateResponse(request, "listagem.html", {
         "entity_type": entity_type,
         "config": config,
         "config_json": config_json,
@@ -181,15 +180,13 @@ async def listagem_page(
 @router.get("/editar-receita/{transacao_id}", response_class=HTMLResponse)
 async def editar_receita(request: Request, transacao_id: int, current_user = Depends(get_current_user)):
     """Página de edição de receita - usa template unificado"""
-    return templates.TemplateResponse("nova_receita.html", {
-        "request": request,
+    return templates.TemplateResponse(request, "nova_receita.html", {
         "transacao_id": transacao_id
     })
 
 @router.get("/editar-despesa/{transacao_id}", response_class=HTMLResponse)
 async def editar_despesa(request: Request, transacao_id: int, current_user = Depends(get_current_user)):
     """Página de edição de despesa - usa template unificado"""
-    return templates.TemplateResponse("nova_despesa.html", {
-        "request": request,
+    return templates.TemplateResponse(request, "nova_despesa.html", {
         "transacao_id": transacao_id
     })

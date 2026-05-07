@@ -2,7 +2,7 @@
 Rotas administrativas para backup, restore e limpeza do banco de dados
 ATENÇÃO: Operações críticas - usar com cuidado!
 """
-from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Request
+from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Request, Form
 from fastapi.responses import StreamingResponse, JSONResponse
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
@@ -51,6 +51,64 @@ MODELS_AUDITORIA = [
 ]
 
 ALL_MODELS = MODELS_CADASTRO + MODELS_TRANSACIONAIS + MODELS_AUDITORIA
+
+# Tabelas de auditoria/telemetria: específicas de cada ambiente, não devem ser
+# importadas em restore cross-environment (Render → AWS, etc.)
+TABELAS_SKIP_IMPORT = {table_name for table_name, _ in MODELS_AUDITORIA}
+
+# Ordem de deleção FK-safe para limpeza completa do destino (folha → raiz)
+# Garante que FK constraints não bloqueiam a deleção de dados
+TABELAS_LIMPAR_ORDEM = [
+    # ── Detalhes / joins leaf ────────────────────────────────────────────────
+    "transacao_impostos_detalhes", "transacao_impostos", "transacao_mensalizacao",
+    "transacao_categoria_contabil", "transacao_categoria_gerencial",
+    "linhaorc_impostos_detalhes", "linhaorc_impostos", "linhaorc_mensalizacao",
+    "linhaorc_categoria_contabil", "linhaorc_categoria_gerencial",
+    "desmembramentos_itens", "desmembramentos_transacoes",
+    "transacoes_cartao", "faturas_cartao",
+    "cartao_usuarios",
+    "projecoes_pl", "pl_map",
+    # ── Transacionais ────────────────────────────────────────────────────────
+    "linhas_orcamentarias", "planejamento_versoes",
+    "transacoes_financeiras",
+    # ── Cadastro dependente ───────────────────────────────────────────────────
+    "projeto_clientes", "produto_servico_clientes",
+    "contatos_clientes", "contatos_fornecedores",
+    "projetos",
+    "regras_impostos_itens", "regras_impostos",
+    "impostos", "cartoes_credito",
+    "contas_bancarias", "contas_contabeis",
+    "centros_custo",
+    "categorias_contabeis", "categorias_gerenciais",
+    "produtos_servicos",
+    "fornecedores", "clientes",
+    "empresa_cnpjs",
+    # ── Auditoria / sessão ────────────────────────────────────────────────────
+    "logs_acoes", "logs_acesso", "sessoes_usuario", "metricas_uso",
+    # ── Root ─────────────────────────────────────────────────────────────────
+    "users", "empresas",
+]
+
+# Tabelas com PK serial que precisam ter a sequence ajustada após import
+# (evita UniqueViolation ao inserir novos registros após importar IDs explícitos)
+TABELAS_SERIAL_ID = [
+    "users", "empresas", "clientes", "fornecedores", "empresa_cnpjs",
+    "categorias_contabeis", "categorias_gerenciais", "centros_custo",
+    "projetos", "projeto_classificacoes", "projeto_clientes",
+    "produtos_servicos", "produto_servico_clientes",
+    "contas_contabeis", "contas_bancarias", "impostos",
+    "cartoes_credito", "cartao_usuarios",
+    "regras_impostos", "regras_impostos_itens",
+    "planejamento_versoes", "linhas_orcamentarias",
+    "linhaorc_mensalizacao", "linhaorc_impostos", "linhaorc_impostos_detalhes",
+    "transacoes_financeiras", "transacao_mensalizacao",
+    "transacao_impostos", "transacao_impostos_detalhes",
+    "desmembramentos_transacoes", "desmembramentos_itens",
+    "faturas_cartao", "transacoes_cartao",
+    "pl_map", "projecoes_pl",
+    "logs_acesso", "logs_acoes", "sessoes_usuario", "metricas_uso",
+    "contatos_clientes", "contatos_fornecedores",
+]
 
 # Mapa de dependências entre tabelas (Foreign Keys)
 # Formato: {"tabela_filha": ["tabela_pai1", "tabela_pai2", ...]}
@@ -670,30 +728,80 @@ async def export_backup(
 @router.post("/admin/backup/import")
 async def import_backup(
     file: UploadFile = File(...),
+    limpar_destino: bool = Form(False),
     current_user = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     """
-    Importa dados de um arquivo de backup JSON
-    ATENÇÃO: Esta operação pode sobrescrever dados existentes!
+    Importa dados de um arquivo de backup JSON.
+
+    limpar_destino=True → Modo Migração Completa:
+        Apaga TODOS os dados do destino (ordem FK-safe) antes de inserir.
+        Ideal para migração entre ambientes (ex: Render → AWS).
+        As sequences são resetadas automaticamente ao final.
+
+    limpar_destino=False (padrão) → Modo Incremental:
+        UPSERT (atualiza se o ID já existe, insere se não existe).
+        Ideal para restaurar backups no mesmo ambiente.
     """
     try:
-        # Ler arquivo JSON
         content = await file.read()
         backup_data = json.loads(content.decode('utf-8'))
 
-        # Validar estrutura do backup
         if "metadata" not in backup_data or "data" not in backup_data:
             raise HTTPException(status_code=400, detail="Formato de backup inválido")
 
         resultado = {
             "sucesso": [],
             "erros": [],
-            "registros_importados": 0
+            "registros_importados": 0,
+            "modo": "migracao_completa" if limpar_destino else "incremental",
         }
 
-        # Importar dados tabela por tabela em UMA ÚNICA TRANSAÇÃO
+        # ── FASE 0 (Modo Migração Completa): limpar destino em ordem FK-safe ──
+        if limpar_destino:
+            print("🧹 Modo Migração Completa: limpando dados do destino...")
+            try:
+                # Desabilitar verificações de FK temporariamente para deleção segura
+                db.execute(text("SET session_replication_role = 'replica'"))
+
+                # Zerar self-references antes de deletar (pai_id, parent_id)
+                for t in ["categorias_contabeis", "categorias_gerenciais",
+                          "linhas_orcamentarias", "transacoes_financeiras"]:
+                    try:
+                        db.execute(text(f"UPDATE {t} SET parent_id = NULL WHERE parent_id IS NOT NULL"))
+                    except Exception:
+                        pass
+                try:
+                    db.execute(text("UPDATE transacoes_financeiras SET linha_orcamentaria_id = NULL "
+                                    "WHERE linha_orcamentaria_id IS NOT NULL"))
+                except Exception:
+                    pass
+
+                for tabela in TABELAS_LIMPAR_ORDEM:
+                    try:
+                        db.execute(text(f"DELETE FROM {tabela}"))
+                        print(f"   🗑️  {tabela} limpa")
+                    except Exception as e_del:
+                        print(f"   ⚠️  Não foi possível limpar {tabela}: {e_del}")
+
+                # Reabilitar FK checks
+                db.execute(text("SET session_replication_role = DEFAULT"))
+                db.commit()
+                print("✅ Destino limpo. Iniciando inserção...")
+                resultado["sucesso"].append("limpeza_destino: concluída")
+            except Exception as e:
+                db.rollback()
+                raise HTTPException(status_code=500,
+                                    detail=f"Erro ao limpar destino: {str(e)}")
+
+        # ── FASE 1: inserir dados do backup ───────────────────────────────────
         for table_name, model in ALL_MODELS:
+            # Pular tabelas de auditoria/telemetria — específicas de cada ambiente
+            if table_name in TABELAS_SKIP_IMPORT:
+                resultado["sucesso"].append(f"{table_name}: ignorado (telemetria de ambiente)")
+                continue
+
             if table_name not in backup_data["data"]:
                 continue
 
@@ -704,48 +812,50 @@ async def import_backup(
                 continue
 
             records_imported = 0
-
             try:
                 for record_dict in table_data:
-                    # Criar novo objeto do modelo
                     new_record = model(**record_dict)
-                    db.merge(new_record)  # merge para atualizar se já existe
+                    # Modo Migração: INSERT direto (tabela já limpa, sem conflito)
+                    # Modo Incremental: UPSERT (mantém dados existentes)
+                    if limpar_destino:
+                        db.add(new_record)
+                    else:
+                        db.merge(new_record)
                     records_imported += 1
 
-                # NÃO commit aqui - acumular tudo na mesma transação
                 resultado["sucesso"].append(f"{table_name}: {records_imported} registros")
                 resultado["registros_importados"] += records_imported
-
-                print(f"✅ Preparado para importar {records_imported} registros em {table_name}")
+                print(f"✅ {table_name}: {records_imported} registros preparados")
 
             except Exception as e:
-                # Erro em qualquer tabela = rollback de TUDO
                 db.rollback()
-                raise HTTPException(status_code=500, detail=f"Erro ao importar {table_name}: {str(e)}")
+                raise HTTPException(status_code=500,
+                                    detail=f"Erro ao importar {table_name}: {str(e)}")
 
-        # Registrar ação de auditoria na MESMA transação
-        log = LogAcao(
-            user_id=current_user.id,
-            acao=TipoAcao.IMPORT,
-            entidade="backup_sistema",
-            descricao=f"Importação de backup do arquivo {file.filename}",
-            dados_depois=json.dumps({
-                "arquivo": file.filename,
-                "registros_importados": resultado["registros_importados"],
-                "tabelas_sucesso": len(resultado["sucesso"]),
-                "tabelas_erro": len(resultado["erros"])
-            })
-        )
-        db.add(log)
-
-        # Commit ÚNICO para todas as importações + log de auditoria
+        # ── COMMIT 1: persiste todos os registros com seus IDs originais ──────
         db.commit()
-        print(f"✅ Importação completa: {resultado['registros_importados']} registros em {len(resultado['sucesso'])} tabelas")
+        print(f"✅ Dados importados ({resultado['registros_importados']} registros).")
+
+        # ── COMMIT 2: ajustar sequences ────────────────────────────────────────
+        # setval(MAX(id), true) → próximo nextval = MAX(id)+1, sem UniqueViolation.
+        # NÃO inserimos LogAcao aqui — AuditoriaMiddleware já cobre este POST.
+        for tabela in TABELAS_SERIAL_ID:
+            try:
+                db.execute(text(
+                    f"SELECT setval(pg_get_serial_sequence('{tabela}', 'id'), "
+                    f"COALESCE((SELECT MAX(id) FROM {tabela}), 1), true)"
+                ))
+            except Exception:
+                pass
+        db.commit()
+        print("✅ Sequences ajustadas. Importação concluída com sucesso.")
 
         return resultado
 
     except json.JSONDecodeError:
         raise HTTPException(status_code=400, detail="Arquivo JSON inválido")
+    except HTTPException:
+        raise
     except Exception as e:
         db.rollback()
         raise HTTPException(status_code=500, detail=f"Erro ao importar backup: {str(e)}")

@@ -721,42 +721,52 @@ class NovaReceitaController {
         }
     }
 
-    async aplicarSugestao(sugestao) {
-        const setIfEmpty = (id, value) => {
+    async aplicarSugestao(sugestao, forcar = false) {
+        const aplicarCampo = (id, value) => {
             const el = document.getElementById(id);
-            if (el && !el.value && value) {
-                el.value = value;
-                return true;
+            if (!el || !value) return false;
+            if (!forcar && el.value) return false;
+            if (el.tagName === 'SELECT') {
+                const existe = Array.from(el.options).some(o => o.value == value);
+                if (!existe) return false;
             }
-            return false;
+            el.value = value;
+            return true;
         };
 
-        setIfEmpty('descricao', sugestao.descricao);
-        setIfEmpty('titulo', sugestao.descricao);
+        aplicarCampo('descricao', sugestao.descricao);
+        aplicarCampo('titulo', sugestao.descricao);
+        aplicarCampo('centro_custo', sugestao.centro_custo_id);
 
-        if (setIfEmpty('centro_custo', sugestao.centro_custo_id)) {
-            document.getElementById('centro_custo')?.dispatchEvent(new Event('change'));
-            await new Promise(r => setTimeout(r, 300));
+        if (aplicarCampo('categoria_contabil', sugestao.categoria_contabil_id)) {
+            await this.loadSubcategories('subcategoria_contabil', sugestao.categoria_contabil_id, 'contabil');
+            aplicarCampo('subcategoria_contabil', sugestao.subcategoria_contabil_id);
         }
 
-        if (setIfEmpty('categoria_contabil', sugestao.categoria_contabil_id)) {
-            document.getElementById('categoria_contabil')?.dispatchEvent(new Event('change'));
-            await new Promise(r => setTimeout(r, 300));
+        if (aplicarCampo('categoria_gerencial', sugestao.categoria_gerencial_id)) {
+            await this.loadSubcategories('subcategoria_gerencial', sugestao.categoria_gerencial_id, 'gerencial');
+            aplicarCampo('subcategoria_gerencial', sugestao.subcategoria_gerencial_id);
         }
-        setIfEmpty('subcategoria_contabil', sugestao.subcategoria_contabil_id);
 
-        if (setIfEmpty('categoria_gerencial', sugestao.categoria_gerencial_id)) {
-            document.getElementById('categoria_gerencial')?.dispatchEvent(new Event('change'));
-            await new Promise(r => setTimeout(r, 300));
-        }
-        setIfEmpty('subcategoria_gerencial', sugestao.subcategoria_gerencial_id);
+        aplicarCampo('conta_contabil', sugestao.conta_contabil_id);
 
-        setIfEmpty('conta_contabil', sugestao.conta_contabil_id);
+        if (forcar) this.mostrarBadgePreenchimento();
+        console.log(`✅ Sugestão aplicada (forcar=${forcar})`);
+    }
 
-        console.log('✅ Sugestão aplicada nos campos vazios');
+    mostrarBadgePreenchimento() {
+        const anterior = document.getElementById('badge-preenchimento-auto');
+        if (anterior) anterior.remove();
+        const badge = document.createElement('div');
+        badge.id = 'badge-preenchimento-auto';
+        badge.style.cssText = 'position:fixed;bottom:24px;right:24px;background:#059669;color:#fff;padding:9px 16px;border-radius:7px;font-size:13px;z-index:9999;box-shadow:0 3px 10px rgba(0,0,0,0.18);display:flex;align-items:center;gap:7px;';
+        badge.innerHTML = '<span style="font-size:15px;">✓</span> Pré-preenchido com dados do último lançamento';
+        document.body.appendChild(badge);
+        setTimeout(() => badge.remove(), 4000);
     }
 
     async loadClienteHistory(clienteId) {
+        if (this.editMode) return;
         try {
             const empresa = document.getElementById('empresa')?.value;
             let url = `/api/transacoes/historico-sugestao?tipo=receita&cliente_id=${clienteId}`;
@@ -771,7 +781,7 @@ class NovaReceitaController {
                 const data = await response.json();
                 if (data.found && data.sugestao) {
                     console.log('📜 Histórico encontrado para cliente:', data.sugestao);
-                    await this.aplicarSugestao(data.sugestao);
+                    await this.aplicarSugestao(data.sugestao, true);
                 }
             }
         } catch (error) {

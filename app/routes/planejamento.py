@@ -26,6 +26,7 @@ class LinhaOrcamentariaCreate(BaseModel):
     ano: int
     categoria: str  # 'receita' ou 'despesa'
     descricao: str
+    versao_id: Optional[int] = None  # Versão de planejamento selecionada pelo usuário
 
     # Valores mensais: dict com chaves 1-12 (mês) e valores (montante)
     valores_mensais: dict[int, float]
@@ -172,26 +173,38 @@ async def criar_linha_orcamentaria(
         if not valores_validos:
             raise HTTPException(status_code=400, detail="Pelo menos um mês deve ter valor maior que zero")
 
-        # Buscar ou criar versão ativa para o ano
-        versao = db.query(PlanejamentoVersao).filter(
-            PlanejamentoVersao.empresa_id == dados.empresa_id,
-            PlanejamentoVersao.ano_referencia == dados.ano,
-            PlanejamentoVersao.is_ativo == True
-        ).first()
+        # Usar versão explicitamente selecionada, ou buscar a ativa como fallback
+        versao = None
+        if dados.versao_id:
+            versao = db.query(PlanejamentoVersao).filter(
+                PlanejamentoVersao.id == dados.versao_id
+            ).first()
+            if not versao:
+                raise HTTPException(
+                    status_code=404,
+                    detail=f"Versão de planejamento #{dados.versao_id} não encontrada."
+                )
 
         if not versao:
-            # Criar nova versão (começa como rascunho)
+            versao = db.query(PlanejamentoVersao).filter(
+                PlanejamentoVersao.empresa_id == dados.empresa_id,
+                PlanejamentoVersao.ano_referencia == dados.ano,
+                PlanejamentoVersao.is_ativo == True
+            ).first()
+
+        if not versao:
+            # Criar nova versão somente se nenhuma versão foi encontrada
             versao = PlanejamentoVersao(
                 empresa_id=dados.empresa_id,
                 nome=f"Orçamento {dados.ano}",
                 ano_referencia=dados.ano,
                 tipo=TipoVersaoEnum.baseline,
                 status=StatusPlanejamentoEnum.rascunho,
-                is_ativo=False,  # Rascunhos não são ativos até publicação
+                is_ativo=False,
                 created_at=datetime.utcnow()
             )
             db.add(versao)
-            db.flush()  # Para obter o ID
+            db.flush()
 
         # Criar linha para cada mês com valor > 0
         linhas_criadas = []
@@ -484,13 +497,24 @@ async def criar_versao(
     try:
         data = await request.json()
         nome = data.get('nome')
-        ano = data.get('ano')
+        ano = data.get('ano') or data.get('ano_referencia')
         tipo = data.get('tipo', 'baseline')
         status = data.get('status', 'rascunho')
         
         if not nome or not ano:
             raise HTTPException(status_code=400, detail="Nome e ano são obrigatórios")
-        
+
+        # Verificar nome duplicado no mesmo ano
+        nome_existente = db.query(PlanejamentoVersao).filter(
+            PlanejamentoVersao.ano_referencia == ano,
+            PlanejamentoVersao.nome == nome
+        ).first()
+        if nome_existente:
+            raise HTTPException(
+                status_code=409,
+                detail=f"Já existe uma versão chamada '{nome}' para o ano {ano}. Escolha um nome diferente."
+            )
+
         # Criar nova versão
         nova_versao = PlanejamentoVersao(
             nome=nome,
@@ -713,6 +737,18 @@ async def renomear_versao(
         if not versao:
             raise HTTPException(status_code=404, detail="Versão não encontrada")
 
+        # Verificar nome duplicado no mesmo ano (excluindo a própria versão)
+        nome_existente = db.query(PlanejamentoVersao).filter(
+            PlanejamentoVersao.ano_referencia == versao.ano_referencia,
+            PlanejamentoVersao.nome == novo_nome,
+            PlanejamentoVersao.id != versao_id
+        ).first()
+        if nome_existente:
+            raise HTTPException(
+                status_code=409,
+                detail=f"Já existe uma versão chamada '{novo_nome}' para o ano {versao.ano_referencia}. Escolha um nome diferente."
+            )
+
         versao.nome = novo_nome
         db.commit()
         db.refresh(versao)
@@ -761,13 +797,25 @@ async def copiar_versao(
         if not versao_origem:
             raise HTTPException(status_code=404, detail="Versão não encontrada")
 
-        # Criar nova versão como cópia
+        # Verificar nome duplicado para a mesma empresa e ano
+        nome_duplicado = db.query(PlanejamentoVersao).filter(
+            PlanejamentoVersao.empresa_id == versao_origem.empresa_id,
+            PlanejamentoVersao.ano_referencia == versao_origem.ano_referencia,
+            PlanejamentoVersao.nome == novo_nome
+        ).first()
+        if nome_duplicado:
+            raise HTTPException(
+                status_code=409,
+                detail=f"Já existe uma versão com o nome '{novo_nome}' para esta empresa e ano. Escolha um nome diferente."
+            )
+
+        # Criar nova versão como cópia mantendo o mesmo tipo da origem
         nova_versao = PlanejamentoVersao(
             empresa_id=versao_origem.empresa_id,
             nome=novo_nome,
             ano_referencia=versao_origem.ano_referencia,
-            tipo=TipoVersaoEnum.revisao,  # Cópias sempre como revisão
-            status=StatusPlanejamentoEnum.rascunho,  # Sempre começa como rascunho
+            tipo=versao_origem.tipo,  # Mantém o tipo original (evita enum inválido no banco)
+            status=StatusPlanejamentoEnum.rascunho,
             is_ativo=False,
             created_by=current_user.id if current_user else None
         )
@@ -1073,21 +1121,21 @@ async def criar_revisao(
         if versao_origem.status != StatusPlanejamentoEnum.publicado:
             raise HTTPException(status_code=400, detail="Só é possível criar revisão de versão publicada")
 
-        # Buscar última revisão para incrementar índice
+        # Buscar última revisão para incrementar índice (pelo indice_revisao, independente do tipo)
         ultima_revisao = db.query(PlanejamentoVersao).filter(
             PlanejamentoVersao.empresa_id == versao_origem.empresa_id,
             PlanejamentoVersao.ano_referencia == versao_origem.ano_referencia,
-            PlanejamentoVersao.tipo == TipoVersaoEnum.revisao
+            PlanejamentoVersao.indice_revisao.isnot(None)
         ).order_by(PlanejamentoVersao.indice_revisao.desc()).first()
 
         proximo_indice = (ultima_revisao.indice_revisao + 1) if ultima_revisao else 1
 
-        # Criar nova versão como revisão
+        # Criar nova versão como revisão (mantém tipo baseline compatível com o banco)
         nova_versao = PlanejamentoVersao(
             empresa_id=versao_origem.empresa_id,
             nome=nome or f"Revisão {proximo_indice} - {versao_origem.ano_referencia}",
             ano_referencia=versao_origem.ano_referencia,
-            tipo=TipoVersaoEnum.revisao,
+            tipo=TipoVersaoEnum.baseline,
             indice_revisao=proximo_indice,
             status=StatusPlanejamentoEnum.rascunho,
             is_ativo=False,  # Rascunho não é ativo até ser publicado

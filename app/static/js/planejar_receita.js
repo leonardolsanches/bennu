@@ -340,6 +340,9 @@ async function handleSubmit(e) {
         descricao: descricaoFinal,
         valores_mensais: valores_mensais,
 
+        // Versão de planejamento selecionada
+        versao_id: getSelectValue('versao'),
+
         // Classificações opcionais
         cliente_id: getSelectValue('cliente'),
         produto_servico_id: getSelectValue('produto_servico')

@@ -129,7 +129,7 @@ async def get_categorias_gerenciais(
             # Isso evita que subcategorias apareçam na listagem de categorias principais
             query = query.filter(CategoriaGerencial.pai_id.is_(None))
 
-        categorias = query.all()
+        categorias = query.order_by(CategoriaGerencial.nome).all()
 
         return [
             {
@@ -187,7 +187,7 @@ async def get_centros_custo(
             CentroCusto.ativo == True
         )
 
-        centros = query.all()
+        centros = query.order_by(CentroCusto.nome).all()
 
         return [
             {
@@ -1043,10 +1043,9 @@ async def create_subcategoria(
     """Criar nova subcategoria (contábil ou gerencial)"""
     try:
         if subcategoria.tipo == 'contabil':
-            # Verificar se a categoria pai contábil existe
+            # Verificar se a categoria pai contábil existe (cross-company: permite categorias globais)
             categoria_pai = db.query(CategoriaContabil).filter(
-                CategoriaContabil.id == subcategoria.pai_id,
-                CategoriaContabil.empresa_id == current_user.empresa_id
+                CategoriaContabil.id == subcategoria.pai_id
             ).first()
             
             if not categoria_pai:
@@ -1065,10 +1064,9 @@ async def create_subcategoria(
             )
             
         elif subcategoria.tipo == 'gerencial':
-            # Verificar se a categoria pai gerencial existe
+            # Verificar se a categoria pai gerencial existe (cross-company: permite categorias globais)
             categoria_pai = db.query(CategoriaGerencial).filter(
-                CategoriaGerencial.id == subcategoria.pai_id,
-                CategoriaGerencial.empresa_id == current_user.empresa_id
+                CategoriaGerencial.id == subcategoria.pai_id
             ).first()
             
             if not categoria_pai:

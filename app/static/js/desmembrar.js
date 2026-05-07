@@ -18,7 +18,8 @@ class DesmembramentoManager {
             tipo: '',
             tipoData: 'competencia',
             mesAno: '',
-            busca: ''
+            busca: '',
+            statusDesmembramento: ''
         };
         this.advancedTable = null;
         this.allTransactions = [];
@@ -245,6 +246,7 @@ class DesmembramentoManager {
         this.filters.tipoData = document.getElementById('filter-tipo-data').value;
         this.filters.mesAno = document.getElementById('filter-mes-ano').value;
         this.filters.busca = document.getElementById('filter-busca').value;
+        this.filters.statusDesmembramento = document.getElementById('filter-status-desmembramento').value;
         this.currentPage = 1;
         this.carregarTransacoes();
     }
@@ -260,7 +262,7 @@ class DesmembramentoManager {
 
         try {
             // Construir URL com filtros (limit=10 para melhor performance)
-            let url = `/api/transacoes?page=${this.currentPage}&limit=${this.pageSize}`;
+            let url = `/api/transacoes?page=${this.currentPage}&limit=${this.pageSize}&incluir_pais=true`;
             
             if (this.filters.tipo) {
                 url += `&tipo=${this.filters.tipo}`;
@@ -278,6 +280,10 @@ class DesmembramentoManager {
 
             if (this.filters.busca) {
                 url += `&busca=${encodeURIComponent(this.filters.busca)}`;
+            }
+
+            if (this.filters.statusDesmembramento) {
+                url += `&status_desmembramento=${this.filters.statusDesmembramento}`;
             }
 
             const response = await fetch(url);
@@ -381,12 +387,43 @@ class DesmembramentoManager {
 
             const clienteFornecedor = t.cliente_fornecedor || 'N/A';
 
+            const isFilho = t.parent_id && t.tipo_filho === 'split';
+            const isDesmembrado = t.entra_no_gerencial === false && !t.parent_id;
+
+            // URL de edição direta — sugestão de fornecedor é tratada automaticamente pelo formulário de edição
+            const editUrl = `/transacoes/editar/${t.id}`;
+
+            let acaoBtn;
+            if (isFilho) {
+                acaoBtn = `
+                    <div style="display:flex;gap:4px;justify-content:center;align-items:center;">
+                        <a href="${editUrl}" class="btn btn-sm" style="background:#217346;color:#fff;font-size:0.68rem;padding:3px 8px;white-space:nowrap;" title="Editar esta parte">
+                            <i class="fas fa-edit"></i> Editar
+                        </a>
+                        <button class="btn btn-danger btn-sm" style="font-size:0.68rem;padding:3px 8px;white-space:nowrap;" onclick="desmembramentoManager.rollbackDesmembramento(${t.parent_id})" title="Desfazer — restaura a transação original">
+                            <i class="fas fa-undo"></i> Desfazer
+                        </button>
+                    </div>`;
+            } else if (isDesmembrado) {
+                acaoBtn = `
+                    <div style="display:flex;justify-content:center;">
+                        <button class="btn btn-warning btn-sm" onclick="desmembramentoManager.selecionarTransacao(${t.id})" data-testid="button-desmembrar-${t.id}" title="Ver/Excluir desmembramento" style="font-size:0.68rem;padding:3px 8px;white-space:nowrap;">
+                            <i class="fas fa-cut"></i> Ver Partes
+                        </button>
+                    </div>`;
+            } else {
+                acaoBtn = `
+                    <div style="display:flex;justify-content:center;">
+                        <button class="btn btn-primary btn-sm" onclick="desmembramentoManager.selecionarTransacao(${t.id})" data-testid="button-desmembrar-${t.id}" title="Desmembrar" style="font-size:0.68rem;padding:3px 8px;white-space:nowrap;">
+                            <i class="fas fa-cut"></i> Desmembrar
+                        </button>
+                    </div>`;
+            }
+
             const row = document.createElement('tr');
             row.innerHTML = `
-                <td style="text-align: center; width: 100px;">
-                    <button class="btn btn-primary btn-sm" onclick="desmembramentoManager.selecionarTransacao(${t.id})" data-testid="button-desmembrar-${t.id}" title="Desmembrar">
-                        <i class="fas fa-cut"></i> Desmembrar
-                    </button>
+                <td style="text-align: center; width: 170px; min-width: 170px;">
+                    ${acaoBtn}
                 </td>
                 <td style="text-align: center;">${statusDesmembramentoBadge}</td>
                 <td>${empresaNome}</td>
@@ -495,10 +532,40 @@ class DesmembramentoManager {
 
             // Limpar itens anteriores
             this.itens = [];
+            this.desmembramentoExistenteId = null;
             document.getElementById('itens-container').innerHTML = '';
 
-            // Adicionar primeiro item automaticamente
-            this.adicionarItem();
+            // Verificar se já possui desmembramento existente
+            const desmRes = await fetch(`/api/desmembramento/${id}`);
+            const desmData = await desmRes.json();
+            const btnExcluir = document.getElementById('btn-excluir-desmembramento');
+            const btnSalvar = document.getElementById('btn-salvar');
+
+            if (desmData.desmembrado) {
+                // Modo visualização: mostrar itens existentes, habilitar exclusão
+                this.desmembramentoExistenteId = desmData.desmembramento_id;
+                btnExcluir.classList.remove('hidden');
+                btnSalvar.classList.add('hidden');
+                document.getElementById('observacoes').value = desmData.observacoes || '';
+
+                // Mostrar itens existentes como somente leitura
+                const itensHTML = desmData.itens.map((item, i) => `
+                    <div class="item-desmembramento" style="background:#f9fafb;border:1px solid #e5e7eb;border-radius:6px;padding:8px;margin-bottom:8px;">
+                        <strong style="font-size:0.75rem;">Item ${i + 1}</strong>
+                        <div style="font-size:0.72rem;color:#374151;margin-top:4px;">
+                            <span><b>Valor:</b> ${Math.abs(item.valor).toLocaleString('pt-BR',{style:'currency',currency:'BRL'})}</span>
+                            <span style="margin-left:16px;"><b>Competência:</b> ${String(item.competencia_mes).padStart(2,'0')}/${item.competencia_ano}</span>
+                            ${item.descricao ? `<span style="margin-left:16px;"><b>Descrição:</b> ${item.descricao}</span>` : ''}
+                        </div>
+                    </div>`).join('');
+                document.getElementById('itens-container').innerHTML = itensHTML ||
+                    '<p style="color:#6b7280;font-size:0.75rem;">Nenhum item encontrado.</p>';
+            } else {
+                // Modo criação: form em branco
+                btnExcluir.classList.add('hidden');
+                btnSalvar.classList.remove('hidden');
+                this.adicionarItem();
+            }
 
             // Mostrar formulário
             document.getElementById('desmembramento-form').classList.remove('hidden');
@@ -509,6 +576,61 @@ class DesmembramentoManager {
         } catch (error) {
             console.error('Erro ao carregar transação:', error);
             this.mostrarAlerta('Erro ao carregar transação', 'danger');
+        }
+    }
+
+    async rollbackDesmembramento(parentId) {
+        if (!confirm('Desfazer este desmembramento? As partes serão removidas e a transação original será restaurada.')) return;
+        try {
+            const desmRes = await fetch(`/api/desmembramento/${parentId}`);
+            const desmData = await desmRes.json();
+            if (!desmData.desmembrado) {
+                this.mostrarAlerta('Desmembramento não encontrado para esta transação.', 'warning');
+                return;
+            }
+            const delRes = await fetch(`/api/desmembramento/${desmData.desmembramento_id}`, { method: 'DELETE' });
+            if (delRes.ok) {
+                this.mostrarAlerta('Rollback realizado! A transação original foi restaurada.', 'success');
+                await this.carregarTransacoes();
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+            } else {
+                const err = await delRes.json();
+                this.mostrarAlerta(err.detail || 'Erro ao desfazer desmembramento', 'danger');
+            }
+        } catch (error) {
+            console.error('Erro no rollback:', error);
+            this.mostrarAlerta('Erro ao desfazer desmembramento', 'danger');
+        }
+    }
+
+    async excluirDesmembramento() {
+        if (!this.desmembramentoExistenteId) return;
+        if (!confirm('Tem certeza que deseja excluir este desmembramento? As partes serão removidas e a transação original será restaurada.')) return;
+
+        try {
+            const response = await fetch(`/api/desmembramento/${this.desmembramentoExistenteId}`, {
+                method: 'DELETE'
+            });
+
+            if (response.ok) {
+                this.mostrarAlerta('Desmembramento excluído com sucesso! A transação original foi restaurada.', 'success');
+                this.transacaoSelecionada = null;
+                this.desmembramentoExistenteId = null;
+                this.itens = [];
+                document.getElementById('desmembramento-form').classList.add('hidden');
+                document.getElementById('observacoes').value = '';
+                document.getElementById('itens-container').innerHTML = '';
+                document.getElementById('btn-excluir-desmembramento').classList.add('hidden');
+                document.getElementById('btn-salvar').classList.remove('hidden');
+                await this.carregarTransacoes();
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+            } else {
+                const error = await response.json();
+                this.mostrarAlerta(error.detail || 'Erro ao excluir desmembramento', 'danger');
+            }
+        } catch (error) {
+            console.error('Erro ao excluir:', error);
+            this.mostrarAlerta('Erro ao excluir desmembramento', 'danger');
         }
     }
 

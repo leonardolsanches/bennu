@@ -40,23 +40,22 @@
 
     <div class="filters-section" style="flex-shrink: 0; background: white; border-radius: 8px; padding: 12px 16px; margin-bottom: 10px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
         <div style="display: flex; flex-wrap: wrap; gap: 16px; align-items: end;">
-            <div class="filter-group" style="min-width: 150px;">
-                <label for="filter-tipo-data" style="font-size: 14px; font-weight: 500; color: #374151; margin-bottom: 4px; display: block;">Competência:</label>
-                <select id="filter-tipo-data" class="form-select">
+            <!-- Tipo de data -->
+            <div class="filter-group" style="min-width: 170px;">
+                <label for="filter-tipo-data" style="font-size: 14px; font-weight: 600; color: #1e40af; margin-bottom: 4px; display: block;">Tipo de Data:</label>
+                <select id="filter-tipo-data" class="form-select" style="border-color: #3b82f6;">
+                    <option value="pagamento">Pagamento</option>
+                    <option value="vencimento">Vencimento</option>
+                    <option value="lancamento">Lançamento</option>
                     <option value="contabil">Comp. Contábil</option>
                     <option value="gerencial">Comp. Gerencial</option>
                 </select>
             </div>
-            <div class="filter-group" style="min-width: 120px;">
-                <label for="filter-ano" style="font-size: 14px; font-weight: 500; color: #374151; margin-bottom: 4px; display: block;">Ano:</label>
-                <select id="filter-ano" class="form-select">
-                    <option value="">Todos os Anos</option>
-                </select>
-            </div>
+            <!-- Mês -->
             <div class="filter-group" style="min-width: 140px;">
-                <label for="filter-mes" style="font-size: 14px; font-weight: 500; color: #374151; margin-bottom: 4px; display: block;">Mês:</label>
-                <select id="filter-mes" class="form-select">
-                    <option value="">Todos os Meses</option>
+                <label for="filter-mes" style="font-size: 14px; font-weight: 600; color: #1e40af; margin-bottom: 4px; display: block;">Mês:</label>
+                <select id="filter-mes" class="form-select" style="border-color: #3b82f6;">
+                    <option value="">Todos</option>
                     <option value="1">Janeiro</option>
                     <option value="2">Fevereiro</option>
                     <option value="3">Março</option>
@@ -71,6 +70,14 @@
                     <option value="12">Dezembro</option>
                 </select>
             </div>
+            <!-- Ano -->
+            <div class="filter-group" style="min-width: 100px;">
+                <label for="filter-ano" style="font-size: 14px; font-weight: 600; color: #1e40af; margin-bottom: 4px; display: block;">Ano:</label>
+                <select id="filter-ano" class="form-select" style="border-color: #3b82f6;">
+                    <option value="">Todos</option>
+                </select>
+            </div>
+            <!-- Filtros secundários -->
             <div class="filter-group" style="min-width: 120px;">
                 <label for="filter-status" style="font-size: 14px; font-weight: 500; color: #374151; margin-bottom: 4px; display: block;">Status:</label>
                 <select id="filter-status" class="form-select">
@@ -85,7 +92,7 @@
                     <option value="">Todos</option>
                 </select>
             </div>
-            <div class="filter-group" style="min-width: 200px;">
+            <div class="filter-group" style="min-width: 180px;">
                 <label for="filter-descricao" style="font-size: 14px; font-weight: 500; color: #374151; margin-bottom: 4px; display: block;">Buscar na Descrição:</label>
                 <input type="text" id="filter-descricao" class="form-control" placeholder="Digite para buscar...">
             </div>

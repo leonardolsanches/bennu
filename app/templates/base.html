@@ -9,6 +9,19 @@
     <link rel="stylesheet" href="/static/css/relatorios.css">
     <link rel="stylesheet" href="/static/css/advanced-tables.css">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+    <style>
+        /* Flatpickr: esconder ícone de calendário nativo e ajustar altInput */
+        input[type="date"]::-webkit-calendar-picker-indicator { display: none !important; }
+        .flatpickr-input.form-input[readonly] { background: white !important; cursor: pointer; }
+        .flatpickr-input.form-control[readonly] { background: white !important; cursor: pointer; }
+        /* Animação do ponto verde de online */
+        @keyframes pulseGreen {
+            0%   { box-shadow: 0 0 0 0 rgba(34,197,94,0.5); }
+            70%  { box-shadow: 0 0 0 5px rgba(34,197,94,0); }
+            100% { box-shadow: 0 0 0 0 rgba(34,197,94,0); }
+        }
+    </style>
 </head>
 <body>
     <nav class="navbar">
@@ -28,6 +41,19 @@
             <a href="/categorizar" class="nav-link"><i class="fas fa-tags"></i> Categorizar</a>
             <a href="/desmembrar" class="nav-link"><i class="fas fa-wrench"></i> Desmembrar</a>
             <a href="/relatorios" class="nav-link"><i class="fas fa-chart-line"></i> Relatórios</a>
+
+            <!-- Indicador de usuários conectados -->
+            <div id="usuarios-online-wrapper" style="position:relative; display:flex; align-items:center; cursor:pointer; padding: 4px 8px;" onclick="togglePainelOnline()" title="Usuários conectados agora">
+                <span style="width:8px; height:8px; border-radius:50%; background:#22c55e; display:inline-block; margin-right:5px; box-shadow:0 0 0 2px rgba(34,197,94,0.3); animation: pulseGreen 2s infinite;"></span>
+                <span id="online-count" style="font-size:13px; font-weight:600; color:#e2e8f0;">1</span>
+                <span style="font-size:12px; color:#94a3b8; margin-left:3px;">online</span>
+            </div>
+            <!-- Painel dropdown com nomes -->
+            <div id="painel-online" style="display:none; position:absolute; top:46px; right:80px; background:#1e293b; border:1px solid #334155; border-radius:8px; padding:12px 16px; min-width:180px; z-index:9999; box-shadow:0 8px 24px rgba(0,0,0,0.4);">
+                <div style="font-size:11px; font-weight:700; color:#94a3b8; text-transform:uppercase; letter-spacing:0.05em; margin-bottom:8px;">Conectados agora</div>
+                <div id="lista-online" style="display:flex; flex-direction:column; gap:6px;"></div>
+            </div>
+
             <a href="/api/logout" class="nav-link"><i class="fas fa-sign-out-alt"></i> Sair</a>
         </div>
     </nav>
@@ -77,11 +103,165 @@
         </div>
     </div>
 
+    <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+    <script src="https://cdn.jsdelivr.net/npm/flatpickr/dist/l10n/pt.js"></script>
     <script src="/static/js/utils.js"></script>
     <script src="/static/js/app.js"></script>
     <script src="/static/js/modals.js"></script>
     <script src="/static/js/transaction-modal.js"></script>
     <script src="/static/js/advanced-tables.js"></script>
     {% block scripts %}{% endblock %}
+    <script>
+    // ─── HEARTBEAT E INDICADOR DE USUÁRIOS ONLINE ────────────────────────────
+    (function() {
+        let _painelAberto = false;
+
+        async function enviarHeartbeat() {
+            try {
+                await fetch('/api/heartbeat', {
+                    method: 'POST',
+                    credentials: 'include'
+                });
+            } catch (e) {}
+        }
+
+        async function atualizarOnline() {
+            try {
+                const resp = await fetch('/api/usuarios-conectados', { credentials: 'include' });
+                if (!resp.ok) return;
+                const data = await resp.json();
+                const count = data.count || 0;
+                const countEl = document.getElementById('online-count');
+                if (countEl) countEl.textContent = count;
+
+                // Atualizar lista se painel estiver aberto
+                if (_painelAberto) renderizarLista(data.usuarios || []);
+            } catch (e) {}
+        }
+
+        window.renderizarLista = function(usuarios) {
+            const lista = document.getElementById('lista-online');
+            if (!lista) return;
+            if (usuarios.length === 0) {
+                lista.innerHTML = '<span style="font-size:12px; color:#64748b;">Nenhum usuário</span>';
+                return;
+            }
+            lista.innerHTML = usuarios.map(u => `
+                <div style="display:flex; align-items:center; gap:8px;">
+                    <span style="width:6px; height:6px; border-radius:50%; background:#22c55e; flex-shrink:0;"></span>
+                    <span style="font-size:13px; color:#e2e8f0; font-weight:500;">${u.nome}</span>
+                </div>
+            `).join('');
+        };
+
+        window.togglePainelOnline = function() {
+            const painel = document.getElementById('painel-online');
+            if (!painel) return;
+            _painelAberto = !_painelAberto;
+            painel.style.display = _painelAberto ? 'block' : 'none';
+            if (_painelAberto) {
+                // Carregar lista imediatamente ao abrir
+                fetch('/api/usuarios-conectados', { credentials: 'include' })
+                    .then(r => r.json())
+                    .then(d => renderizarLista(d.usuarios || []))
+                    .catch(() => {});
+            }
+        };
+
+        // Fechar painel ao clicar fora
+        document.addEventListener('click', function(e) {
+            if (_painelAberto && !document.getElementById('usuarios-online-wrapper')?.contains(e.target)) {
+                _painelAberto = false;
+                const p = document.getElementById('painel-online');
+                if (p) p.style.display = 'none';
+            }
+        });
+
+        // Iniciar: heartbeat imediato + atualizar contador
+        enviarHeartbeat();
+        atualizarOnline();
+
+        // Repetir a cada 60 segundos
+        setInterval(function() {
+            enviarHeartbeat();
+            atualizarOnline();
+        }, 60000);
+    })();
+    </script>
+    <script>
+    /* Inicializar Flatpickr em PT-BR para todos os campos de data da página */
+    (function initBRDatePickers() {
+        var proto = HTMLInputElement.prototype;
+        var nativeValueDesc = Object.getOwnPropertyDescriptor(proto, 'value');
+
+        function initFlatpickr(input) {
+            if (input._fpInit) return;
+            input._fpInit = true;
+
+            var fp = flatpickr(input, {
+                locale: 'pt',
+                dateFormat: 'Y-m-d',
+                altInput: true,
+                altFormat: 'd/m/Y',
+                allowInput: true,
+                defaultDate: input.value || null
+            });
+
+            /* Copia classes do input original para o altInput */
+            if (fp.altInput) {
+                fp.altInput.className = input.className.replace('flatpickr-input', '').trim() + ' flatpickr-input';
+                fp.altInput.style.cssText = input.style.cssText;
+            }
+
+            /* Patch do setter: garante que el.value = 'YYYY-MM-DD' atualiza o picker */
+            var updating = false;
+            Object.defineProperty(input, 'value', {
+                get: function() { return nativeValueDesc.get.call(this); },
+                set: function(val) {
+                    nativeValueDesc.set.call(this, val);
+                    if (!updating && fp && val) {
+                        updating = true;
+                        fp.setDate(val, false);
+                        updating = false;
+                    } else if (!updating && fp && !val) {
+                        updating = true;
+                        fp.clear(false);
+                        updating = false;
+                    }
+                },
+                configurable: true
+            });
+        }
+
+        function initMonthInput(input) {
+            input.setAttribute('lang', 'pt-BR');
+        }
+
+        function scanAndInit() {
+            document.querySelectorAll('input[type="date"]').forEach(initFlatpickr);
+            document.querySelectorAll('input[type="month"]').forEach(initMonthInput);
+        }
+
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', scanAndInit);
+        } else {
+            scanAndInit();
+        }
+
+        /* Observar novos inputs adicionados dinamicamente (ex: splits, retenções) */
+        var observer = new MutationObserver(function(mutations) {
+            mutations.forEach(function(m) {
+                m.addedNodes.forEach(function(node) {
+                    if (node.nodeType !== 1) return;
+                    node.querySelectorAll('input[type="date"]').forEach(initFlatpickr);
+                    node.querySelectorAll('input[type="month"]').forEach(initMonthInput);
+                    if (node.matches && node.matches('input[type="date"]')) initFlatpickr(node);
+                    if (node.matches && node.matches('input[type="month"]')) initMonthInput(node);
+                });
+            });
+        });
+        observer.observe(document.body, { childList: true, subtree: true });
+    })();
+    </script>
 </body>
 </html>

@@ -113,17 +113,24 @@
                         <tr class="loading"><td colspan="12" style="text-align: center; padding: 12px;">Carregando transações recentes...</td></tr>
                     </tbody>
                     <tfoot id="dashboard-totals-footer" style="position: sticky; bottom: 0; z-index: 10; font-size: 0.65rem;">
+                        <!-- cols: [1]chk [2]lanc [3]cont [4]ger [5]desc [6]tipo [7]valor [8]cli [9]forn [10]forma [11]status [12]acoes -->
+                        <!-- Linha Página -->
                         <tr style="background: #eef2f7; border-top: 1px solid #cbd5e1;">
-                            <td style="padding: 3px 6px;"></td>
-                            <td colspan="5" style="padding: 3px 6px; color: #6b7280;">Página</td>
-                            <td id="footer-pagina-valor" style="padding: 3px 6px; text-align: right; font-weight: bold;"></td>
-                            <td id="footer-pagina-qtd" colspan="5" style="padding: 3px 6px; color: #6b7280;"></td>
+                            <td style="padding: 3px 4px;"></td>
+                            <td colspan="3" style="padding: 3px 6px; color: #6b7280; font-weight: 600; white-space: nowrap;">Página</td>
+                            <td id="footer-pagina-receitas" style="padding: 3px 6px; text-align: right; color: #059669; font-weight: 700; white-space: nowrap; font-size: 0.6rem;"></td>
+                            <td id="footer-pagina-despesas" style="padding: 3px 6px; text-align: right; color: #dc2626; font-weight: 700; white-space: nowrap; font-size: 0.6rem;"></td>
+                            <td id="footer-pagina-saldo" style="padding: 3px 6px; text-align: right; font-weight: 800; white-space: nowrap; border-left: 2px solid #94a3b8;"></td>
+                            <td id="footer-pagina-qtd" colspan="5" style="padding: 3px 6px; color: #9ca3af; white-space: nowrap;"></td>
                         </tr>
-                        <tr style="background: #e2e8f0; border-top: 1px solid #94a3b8;">
-                            <td style="padding: 3px 6px;"></td>
-                            <td colspan="5" style="padding: 3px 6px; color: #374151; font-weight: bold;">Total Período</td>
-                            <td id="footer-periodo-valor" style="padding: 3px 6px; text-align: right; font-weight: bold;"></td>
-                            <td id="footer-periodo-qtd" colspan="5" style="padding: 3px 6px; color: #6b7280;"></td>
+                        <!-- Linha Total Período -->
+                        <tr style="background: #dde3ed; border-top: 2px solid #94a3b8;">
+                            <td style="padding: 4px 4px;"></td>
+                            <td colspan="3" style="padding: 4px 6px; color: #1e293b; font-weight: 700; white-space: nowrap;">Total Período</td>
+                            <td id="footer-periodo-receitas" style="padding: 4px 6px; text-align: right; color: #059669; font-weight: 700; white-space: nowrap; font-size: 0.6rem;"></td>
+                            <td id="footer-periodo-despesas" style="padding: 4px 6px; text-align: right; color: #dc2626; font-weight: 700; white-space: nowrap; font-size: 0.6rem;"></td>
+                            <td id="footer-periodo-saldo" style="padding: 4px 6px; text-align: right; font-weight: 800; white-space: nowrap; border-left: 2px solid #94a3b8;"></td>
+                            <td id="footer-periodo-qtd" colspan="5" style="padding: 4px 6px; color: #6b7280; white-space: nowrap;"></td>
                         </tr>
                     </tfoot>
                 </table>
@@ -140,6 +147,72 @@
         </div>
     </div>
 
+</div>
+
+<!-- Menu de contexto (botão direito na linha) -->
+<div id="context-menu-transacao" style="
+    display: none; position: fixed; z-index: 9999;
+    background: white; border: 1px solid #e2e8f0; border-radius: 6px;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.15); min-width: 160px; font-size: 0.75rem;">
+    <div id="ctx-duplicar" style="padding: 8px 14px; cursor: pointer; display: flex; align-items: center; gap: 8px; color: #1e293b;"
+         onmouseover="this.style.background='#f1f5f9'" onmouseout="this.style.background='white'">
+        <span>⧉</span> Duplicar registro
+    </div>
+</div>
+
+<!-- Modal de duplicação -->
+<div id="modal-duplicar-transacao" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.45); z-index:10000; align-items:center; justify-content:center;">
+    <div style="background:white; border-radius:8px; padding:24px; width:400px; box-shadow:0 8px 32px rgba(0,0,0,0.2); font-size:0.8rem;">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
+            <h5 style="margin:0; font-size:0.9rem; font-weight:700; color:#1e293b;">⧉ Duplicar Transação</h5>
+            <button onclick="fecharModalDuplicar()" style="background:none; border:none; font-size:1.2rem; cursor:pointer; color:#6b7280;">&times;</button>
+        </div>
+        <div id="duplicar-info-original" style="background:#f8fafc; border-radius:4px; padding:8px 12px; margin-bottom:16px; color:#6b7280; font-size:0.72rem; border-left:3px solid #94a3b8;"></div>
+        <div style="display:grid; gap:12px;">
+            <div>
+                <label style="font-weight:600; display:block; margin-bottom:4px; color:#374151;">Data de Lançamento *</label>
+                <input type="date" id="dup-data-lancamento" class="form-control form-control-sm">
+            </div>
+            <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px;">
+                <div>
+                    <label style="font-weight:600; display:block; margin-bottom:4px; color:#374151;">Comp. Contábil *</label>
+                    <select id="dup-comp-mes-contabil" class="form-select form-select-sm">
+                        <option value="1">Janeiro</option><option value="2">Fevereiro</option>
+                        <option value="3">Março</option><option value="4">Abril</option>
+                        <option value="5">Maio</option><option value="6">Junho</option>
+                        <option value="7">Julho</option><option value="8">Agosto</option>
+                        <option value="9">Setembro</option><option value="10">Outubro</option>
+                        <option value="11">Novembro</option><option value="12">Dezembro</option>
+                    </select>
+                </div>
+                <div>
+                    <label style="font-weight:600; display:block; margin-bottom:4px; color:#374151;">&nbsp;</label>
+                    <select id="dup-comp-ano-contabil" class="form-select form-select-sm"></select>
+                </div>
+            </div>
+            <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px;">
+                <div>
+                    <label style="font-weight:600; display:block; margin-bottom:4px; color:#374151;">Comp. Gerencial</label>
+                    <select id="dup-comp-mes-gerencial" class="form-select form-select-sm">
+                        <option value="1">Janeiro</option><option value="2">Fevereiro</option>
+                        <option value="3">Março</option><option value="4">Abril</option>
+                        <option value="5">Maio</option><option value="6">Junho</option>
+                        <option value="7">Julho</option><option value="8">Agosto</option>
+                        <option value="9">Setembro</option><option value="10">Outubro</option>
+                        <option value="11">Novembro</option><option value="12">Dezembro</option>
+                    </select>
+                </div>
+                <div>
+                    <label style="font-weight:600; display:block; margin-bottom:4px; color:#374151;">&nbsp;</label>
+                    <select id="dup-comp-ano-gerencial" class="form-select form-select-sm"></select>
+                </div>
+            </div>
+        </div>
+        <div style="display:flex; justify-content:flex-end; gap:8px; margin-top:20px;">
+            <button onclick="fecharModalDuplicar()" class="btn btn-secondary btn-sm">Cancelar</button>
+            <button onclick="confirmarDuplicar()" class="btn btn-primary btn-sm" style="background:#1d4ed8; border-color:#1d4ed8;">⧉ Duplicar</button>
+        </div>
+    </div>
 </div>
 
 <script src="/static/js/dashboard.js"></script>

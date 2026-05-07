@@ -2701,11 +2701,13 @@ def obterSaldoInicial(db: Session, empresa_id: int, ano_anterior: int) -> float:
     """
     try:
         # Query para somar todas as transações pagas até o final do ano anterior
+        # entra_no_gerencial == True exclui pais desmembrados (evita duplicidade com filhos)
         query = db.query(func.sum(TransacaoFinanceira.valor)).filter(
             TransacaoFinanceira.empresa_id == empresa_id,
             TransacaoFinanceira.data_pagamento.isnot(None),
             func.extract('year', TransacaoFinanceira.data_pagamento) <= ano_anterior,
-            TransacaoFinanceira.exibir_no_cash_control == True
+            TransacaoFinanceira.exibir_no_cash_control == True,
+            TransacaoFinanceira.entra_no_gerencial == True
         )
 
         resultado = query.scalar()
@@ -2734,8 +2736,10 @@ async def get_cash_control(
 
         # Query base para transações efetivamente pagas/recebidas
         # Inclui transações com data_pagamento preenchida OU status = 'pago'
+        # entra_no_gerencial == True exclui pais desmembrados (filhos entram individualmente)
         query = db.query(TransacaoFinanceira).filter(
             TransacaoFinanceira.exibir_no_cash_control == True,
+            TransacaoFinanceira.entra_no_gerencial == True,
             or_(
                 TransacaoFinanceira.data_pagamento.isnot(None),
                 TransacaoFinanceira.status == 'pago'
@@ -3105,13 +3109,13 @@ async def get_top_despesas(
 async def get_contas_a_pagar(
     current_user = Depends(get_current_user),
     db: Session = Depends(get_db),
-    ano: Optional[int] = Query(None),
     mes: Optional[int] = Query(None),
+    ano: Optional[int] = Query(None),
+    tipo_data: Optional[str] = Query("pagamento", description="'pagamento' | 'vencimento' | 'lancamento' | 'contabil' | 'gerencial'"),
     status: Optional[str] = Query(None),
     fornecedor: Optional[str] = Query(None),
     descricao: Optional[str] = Query(None),
-    empresa: Optional[int] = Query(None),
-    tipo_data: Optional[str] = Query("contabil", description="'contabil' ou 'gerencial'")
+    empresa: Optional[int] = Query(None)
 ):
     """
     Relatório de Contas a Pagar
@@ -3119,32 +3123,18 @@ async def get_contas_a_pagar(
     Exclui: transações pai desmembradas e retenções de impostos (vão para relatório específico)
     """
     try:
-        from sqlalchemy import and_, not_, or_
-
-        usar_gerencial = tipo_data == "gerencial"
+        from sqlalchemy import and_, not_, or_, extract as sql_extract, case as sql_case
 
         # Query base para despesas:
-        # - Inclui transações normais (sem tipo_filho ou exibir_no_cash_control=True)
-        # - Inclui pagamentos ao fornecedor (nome começa com 'Pagamento')
-        # - Exclui retenções de impostos (nome começa com 'Retenção')
-        # - Exclui transações pai desmembradas (entra_no_gerencial=True mas exibir_no_cash_control=False)
+        # - entra_no_gerencial == True exclui pais desmembrados E retenções de impostos
+        # - Inclui pagamentos ao fornecedor (tipo_filho='split', nome 'Pagamento', entra_no_gerencial=True)
+        # - Exclui retenções de impostos (tipo_filho='split', nome 'Retenção%', entra_no_gerencial=False)
+        # - Exclui pais desmembrados (entra_no_gerencial=False setado pelo desmembramento)
         query = db.query(TransacaoFinanceira).filter(
             and_(
                 TransacaoFinanceira.tipo == 'despesa',
-                TransacaoFinanceira.valor != 0,  # Excluir transações pai zeradas (se houver)
-                not_(
-                    and_(
-                        TransacaoFinanceira.tipo_filho == 'split',
-                        TransacaoFinanceira.nome.like('Retenção%')
-                    )
-                ),
-                # Excluir transações pai desmembradas (entra no P&L mas não no Cash Control)
-                not_(
-                    and_(
-                        TransacaoFinanceira.exibir_no_cash_control == False,
-                        TransacaoFinanceira.tipo_filho.is_(None)
-                    )
-                )
+                TransacaoFinanceira.valor != 0,
+                TransacaoFinanceira.entra_no_gerencial == True,
             )
         )
 
@@ -3152,17 +3142,56 @@ async def get_contas_a_pagar(
         if empresa:
             query = query.filter(TransacaoFinanceira.empresa_id == empresa)
 
-        # Filtros por competência contábil ou gerencial
-        if ano:
-            if usar_gerencial:
-                query = query.filter(TransacaoFinanceira.competencia_ano_gerencial == ano)
-            else:
-                query = query.filter(TransacaoFinanceira.competencia_ano_contabil == ano)
-        if mes:
-            if usar_gerencial:
+        # Filtro de data unificado por tipo_data + mes + ano
+        tipo = tipo_data or "pagamento"
+
+        if tipo == "pagamento":
+            # Data efetiva de pagamento: usa data_pagamento quando preenchida,
+            # caso contrário usa data_vencimento para registros marcados como 'pago'
+            # (espelha a lógica de exibição do frontend)
+            data_pgto_efetiva = func.coalesce(
+                TransacaoFinanceira.data_pagamento,
+                sql_case(
+                    (TransacaoFinanceira.status == 'pago', TransacaoFinanceira.data_vencimento),
+                    else_=None
+                )
+            )
+            if mes:
+                query = query.filter(sql_extract('month', data_pgto_efetiva) == mes)
+            if ano:
+                query = query.filter(sql_extract('year', data_pgto_efetiva) == ano)
+        elif tipo == "vencimento":
+            if mes:
+                query = query.filter(sql_extract('month', TransacaoFinanceira.data_vencimento) == mes)
+            if ano:
+                query = query.filter(sql_extract('year', TransacaoFinanceira.data_vencimento) == ano)
+        elif tipo == "lancamento":
+            if mes:
+                query = query.filter(sql_extract('month', TransacaoFinanceira.data_lancamento) == mes)
+            if ano:
+                query = query.filter(sql_extract('year', TransacaoFinanceira.data_lancamento) == ano)
+        elif tipo == "gerencial":
+            if mes:
                 query = query.filter(TransacaoFinanceira.competencia_mes_gerencial == mes)
-            else:
-                query = query.filter(TransacaoFinanceira.competencia_mes_contabil == mes)
+            if ano:
+                query = query.filter(TransacaoFinanceira.competencia_ano_gerencial == ano)
+        else:
+            # "contabil" — filtro com fallback: usa _contabil se preenchido, senão usa campo legado
+            # Isso garante que filhos de desdobramentos sem _contabil próprio ainda apareçam
+            if mes:
+                query = query.filter(
+                    func.coalesce(
+                        TransacaoFinanceira.competencia_mes_contabil,
+                        TransacaoFinanceira.competencia_mes
+                    ) == mes
+                )
+            if ano:
+                query = query.filter(
+                    func.coalesce(
+                        TransacaoFinanceira.competencia_ano_contabil,
+                        TransacaoFinanceira.competencia_ano
+                    ) == ano
+                )
 
         # Filtro por status — verifica data_pagamento E campo status
         if status:
@@ -3211,7 +3240,10 @@ async def get_contas_a_pagar(
             Fornecedor.nome.label('fornecedor_nome'),
             CategoriaContabil.nome.label('categoria_contabil_nome'),
             CentroCusto.nome.label('centro_custo_nome')
-        ).order_by(TransacaoFinanceira.data_vencimento.desc()).all()
+        ).order_by(
+            TransacaoFinanceira.data_pagamento.asc().nullslast(),
+            TransacaoFinanceira.data_vencimento.asc().nullslast()
+        ).all()
 
         # Buscar retenções de impostos para todas as transações em lote
         ids_transacoes = [item[0].id for item in transacoes]
@@ -3344,8 +3376,10 @@ async def get_contas_a_receber(
     """
     try:
         # Query base para receitas
+        # entra_no_gerencial == True exclui pais desmembrados (filhos entram individualmente)
         query = db.query(TransacaoFinanceira).filter(
-            TransacaoFinanceira.tipo == 'receita'
+            TransacaoFinanceira.tipo == 'receita',
+            TransacaoFinanceira.entra_no_gerencial == True
         )
 
         # Usar empresa do filtro se fornecido, senão mostrar todas
@@ -4395,7 +4429,12 @@ async def export_contas_a_pagar_excel(
     status: Optional[str] = Query(None),
     fornecedor: Optional[str] = Query(None),
     descricao: Optional[str] = Query(None),
-    empresa: Optional[int] = Query(None)
+    empresa: Optional[int] = Query(None),
+    tipo_data: Optional[str] = Query("contabil"),
+    data_pgto_de: Optional[str] = Query(None),
+    data_pgto_ate: Optional[str] = Query(None),
+    ano_pgto: Optional[int] = Query(None),
+    mes_pgto: Optional[int] = Query(None)
 ):
     """
     Exportar Contas a Pagar em formato Excel (.xlsx)
@@ -4409,7 +4448,12 @@ async def export_contas_a_pagar_excel(
             status=status,
             fornecedor=fornecedor,
             descricao=descricao,
-            empresa=empresa
+            empresa=empresa,
+            tipo_data=tipo_data,
+            data_pgto_de=data_pgto_de,
+            data_pgto_ate=data_pgto_ate,
+            ano_pgto=ano_pgto,
+            mes_pgto=mes_pgto
         )
 
         wb = Workbook()

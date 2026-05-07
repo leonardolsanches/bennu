@@ -41,10 +41,10 @@ def build_base_transacao_query(db: Session, tipo: str = None, empresa_id: int = 
         query = query.filter(TransacaoFinanceira.empresa_id == empresa_id)
 
     if ano:
-        query = query.filter(TransacaoFinanceira.competencia_ano == ano)
+        query = query.filter(TransacaoFinanceira.competencia_ano_contabil == ano)
 
     if mes:
-        query = query.filter(TransacaoFinanceira.competencia_mes == mes)
+        query = query.filter(TransacaoFinanceira.competencia_mes_contabil == mes)
 
     return query
 
@@ -356,9 +356,9 @@ async def get_summary(
             periodo_str = f"mês {mes}/{ano} (por comp. gerencial)" if mes and ano else f"ano {ano} (por comp. gerencial)" if ano else "TODAS as empresas"
         else:
             if ano:
-                query = query.filter(TransacaoFinanceira.competencia_ano == ano)
+                query = query.filter(TransacaoFinanceira.competencia_ano_contabil == ano)
             if mes:
-                query = query.filter(TransacaoFinanceira.competencia_mes == mes)
+                query = query.filter(TransacaoFinanceira.competencia_mes_contabil == mes)
             periodo_str = f"mês {mes}/{ano} (por competência)" if mes and ano else f"ano {ano} (por competência)" if ano else "TODAS as empresas"
         
         print(f"🔍 Summary: Calculando para {periodo_str}")
@@ -770,7 +770,9 @@ async def list_transacoes(
     busca: Optional[str] = Query(None),
     data_inicio: Optional[date] = Query(None),
     data_fim: Optional[date] = Query(None),
-    tipo_data: Optional[str] = Query("competencia", description="Tipo de data para filtro: 'competencia', 'competencia_gerencial' ou 'lancamento'")
+    tipo_data: Optional[str] = Query("competencia", description="Tipo de data para filtro: 'competencia', 'competencia_gerencial' ou 'lancamento'"),
+    incluir_pais: bool = Query(False, description="Incluir transações pai (desmembradas) na listagem, ignorando filtro leaf-nodes"),
+    status_desmembramento: Optional[str] = Query(None, description="'com' = apenas desmembrados/filhos, 'sem' = apenas normais")
 ):
     """
     Lista transações com filtros
@@ -798,9 +800,9 @@ async def list_transacoes(
             periodo_str = f"mês {mes}/{ano} (por comp. gerencial)" if mes and ano else f"ano {ano} (por comp. gerencial)" if ano else "TODAS as empresas"
         else:
             if ano:
-                query = query.filter(TransacaoFinanceira.competencia_ano == ano)
+                query = query.filter(TransacaoFinanceira.competencia_ano_contabil == ano)
             if mes:
-                query = query.filter(TransacaoFinanceira.competencia_mes == mes)
+                query = query.filter(TransacaoFinanceira.competencia_mes_contabil == mes)
             periodo_str = f"mês {mes}/{ano} (por competência)" if mes and ano else f"ano {ano} (por competência)" if ano else "TODAS as empresas"
         
         print(f"🔍 Listagem: Mostrando transações de {periodo_str}")
@@ -829,8 +831,37 @@ async def list_transacoes(
             query = query.filter(TransacaoFinanceira.data_lancamento <= data_fim)
 
         # 🌳 HIERARQUIA: Filtrar apenas leaf nodes antes de ordenar
-        query = apply_leaf_nodes_filter(query, db)
-        
+        # incluir_pais=True: mostra pais desmembrados (para tela de desmembramento)
+        if not incluir_pais:
+            query = apply_leaf_nodes_filter(query, db)
+
+        # Filtro por status de desmembramento (server-side para paginação correta)
+        # Critério baseado em relação real (parent_id), não em flags que podem ter outros usos
+        if status_desmembramento == 'com':
+            # Subquery: IDs de todas as transações que são pai de algum filho
+            pais_subq = select(TransacaoFinanceira.parent_id).where(
+                TransacaoFinanceira.parent_id.isnot(None)
+            ).scalar_subquery()
+            # Inclui quem É pai OU quem É filho
+            query = query.filter(
+                or_(
+                    TransacaoFinanceira.id.in_(pais_subq),
+                    TransacaoFinanceira.parent_id.isnot(None)
+                )
+            )
+        elif status_desmembramento == 'sem':
+            # Subquery: IDs de todas as transações que são pai de algum filho
+            pais_subq = select(TransacaoFinanceira.parent_id).where(
+                TransacaoFinanceira.parent_id.isnot(None)
+            ).scalar_subquery()
+            # Exclui quem É pai E quem É filho
+            query = query.filter(
+                and_(
+                    TransacaoFinanceira.id.notin_(pais_subq),
+                    TransacaoFinanceira.parent_id.is_(None)
+                )
+            )
+
         # Ordenação padrão por data mais recente
         query = query.order_by(TransacaoFinanceira.data_lancamento.desc())
 
@@ -858,9 +889,9 @@ async def list_transacoes(
                     total_query = total_query.filter(TransacaoFinanceira.competencia_mes_gerencial == mes)
             else:
                 if ano:
-                    total_query = total_query.filter(TransacaoFinanceira.competencia_ano == ano)
+                    total_query = total_query.filter(TransacaoFinanceira.competencia_ano_contabil == ano)
                 if mes:
-                    total_query = total_query.filter(TransacaoFinanceira.competencia_mes == mes)
+                    total_query = total_query.filter(TransacaoFinanceira.competencia_mes_contabil == mes)
             
             if tipo:
                 total_query = total_query.filter(TransacaoFinanceira.tipo == tipo)
@@ -870,7 +901,31 @@ async def list_transacoes(
                 total_query = total_query.filter(TransacaoFinanceira.data_lancamento <= data_fim)
             
             # 🌳 HIERARQUIA: Aplicar filtro de leaf nodes ao total
-            total_query = apply_leaf_nodes_filter(total_query, db)
+            if not incluir_pais:
+                total_query = apply_leaf_nodes_filter(total_query, db)
+
+            # Filtro de status de desmembramento no total (espelha o da query principal)
+            if status_desmembramento == 'com':
+                pais_subq_total = select(TransacaoFinanceira.parent_id).where(
+                    TransacaoFinanceira.parent_id.isnot(None)
+                ).scalar_subquery()
+                total_query = total_query.filter(
+                    or_(
+                        TransacaoFinanceira.id.in_(pais_subq_total),
+                        TransacaoFinanceira.parent_id.isnot(None)
+                    )
+                )
+            elif status_desmembramento == 'sem':
+                pais_subq_total = select(TransacaoFinanceira.parent_id).where(
+                    TransacaoFinanceira.parent_id.isnot(None)
+                ).scalar_subquery()
+                total_query = total_query.filter(
+                    and_(
+                        TransacaoFinanceira.id.notin_(pais_subq_total),
+                        TransacaoFinanceira.parent_id.is_(None)
+                    )
+                )
+
             total = total_query.count()
             print(f"🔍 DEBUG: Total de transações (leaf nodes) de {periodo_str}: {total}")
         except Exception as db_error:
@@ -2941,6 +2996,87 @@ async def export_transacoes_excel(
     except Exception as e:
         print(f"❌ Erro ao exportar Excel: {e}")
         raise HTTPException(status_code=500, detail=f"Erro ao gerar arquivo Excel: {str(e)}")
+
+
+@router.post("/transacoes/{transacao_id}/duplicar")
+async def duplicar_transacao(
+    transacao_id: int,
+    request: Request,
+    current_user = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """
+    Duplica uma transação existente com nova data de lançamento e competências.
+    Todos os demais campos (valor, fornecedor, cliente, categorias, etc.) são copiados.
+    """
+    try:
+        data = await request.json()
+        nova_data_lancamento = data.get("data_lancamento")
+        nova_comp_mes_contabil = data.get("competencia_mes_contabil")
+        nova_comp_ano_contabil = data.get("competencia_ano_contabil")
+        nova_comp_mes_gerencial = data.get("competencia_mes_gerencial")
+        nova_comp_ano_gerencial = data.get("competencia_ano_gerencial")
+
+        if not nova_data_lancamento or not nova_comp_mes_contabil or not nova_comp_ano_contabil:
+            raise HTTPException(status_code=400, detail="Data de lançamento e competência contábil são obrigatórios")
+
+        original = db.query(TransacaoFinanceira).filter(
+            TransacaoFinanceira.id == transacao_id
+        ).first()
+
+        if not original:
+            raise HTTPException(status_code=404, detail="Transação não encontrada")
+
+        from datetime import date as date_type
+        try:
+            nova_data = date_type.fromisoformat(nova_data_lancamento)
+        except ValueError:
+            raise HTTPException(status_code=400, detail="Formato de data inválido. Use YYYY-MM-DD.")
+
+        copia = TransacaoFinanceira(
+            empresa_id=original.empresa_id,
+            tipo=original.tipo,
+            data_lancamento=nova_data,
+            competencia_ano=nova_comp_ano_contabil,
+            competencia_mes=nova_comp_mes_contabil,
+            competencia_ano_contabil=nova_comp_ano_contabil,
+            competencia_mes_contabil=nova_comp_mes_contabil,
+            competencia_ano_gerencial=nova_comp_ano_gerencial or nova_comp_ano_contabil,
+            competencia_mes_gerencial=nova_comp_mes_gerencial or nova_comp_mes_contabil,
+            nome=original.nome,
+            descricao=original.descricao,
+            valor=original.valor,
+            status=original.status,
+            forma_pgto=original.forma_pgto,
+            cliente_id=original.cliente_id,
+            fornecedor_id=original.fornecedor_id,
+            categoria_contabil_id=original.categoria_contabil_id,
+            subcategoria_contabil_id=original.subcategoria_contabil_id,
+            categoria_gerencial_id=original.categoria_gerencial_id,
+            subcategoria_gerencial_id=original.subcategoria_gerencial_id,
+            centro_custo_id=original.centro_custo_id,
+            projeto_id=original.projeto_id,
+            numero_nota_fiscal=original.numero_nota_fiscal,
+            created_at=datetime.utcnow()
+        )
+
+        db.add(copia)
+        db.commit()
+        db.refresh(copia)
+
+        print(f"✅ Transação {transacao_id} duplicada como #{copia.id}")
+        return {
+            "success": True,
+            "message": f"Transação duplicada com sucesso (novo ID: #{copia.id})",
+            "id": copia.id
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        db.rollback()
+        print(f"❌ Erro ao duplicar transação {transacao_id}: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 # 🔧 ENDPOINT DINÂMICO MOVIDO PARA O FINAL - resolve conflito de rotas 422

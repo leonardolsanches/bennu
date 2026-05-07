@@ -839,6 +839,10 @@ async function abrirRenomearVersao(versaoId, nomeAtual) {
 
         if (!response.ok) {
             const error = await response.json();
+            if (response.status === 409) {
+                alert('⚠️ ' + (error.detail || 'Nome já existe. Escolha um nome diferente.'));
+                return abrirRenomearVersao(versaoId, novoNome.trim());
+            }
             throw new Error(error.detail || 'Erro ao renomear versão');
         }
 
@@ -871,6 +875,10 @@ async function abrirCopiarVersao(versaoId, nomeOriginal) {
 
         if (!response.ok) {
             const error = await response.json();
+            if (response.status === 409) {
+                alert('⚠️ ' + (error.detail || 'Nome já existe. Escolha um nome diferente.'));
+                return abrirCopiarVersao(versaoId, novoNome.trim());
+            }
             throw new Error(error.detail || 'Erro ao copiar versão');
         }
 

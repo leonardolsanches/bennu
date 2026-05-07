@@ -81,7 +81,23 @@
                     <label class="form-label">Selecionar Arquivo</label>
                     <input type="file" id="arquivo-backup" accept=".json" class="form-control" data-testid="input-arquivo-backup">
                 </div>
-                
+
+                <div style="margin-bottom: 15px; padding: 12px; background: #fef3c7; border: 1px solid #f59e0b; border-radius: 6px;">
+                    <div style="display: flex; align-items: flex-start; gap: 10px;">
+                        <input type="checkbox" id="limpar-destino" style="margin-top: 3px; width: 16px; height: 16px; cursor: pointer; accent-color: #dc2626;">
+                        <div>
+                            <label for="limpar-destino" style="font-weight: 600; color: #92400e; cursor: pointer; display: block; margin-bottom: 2px;">
+                                <i class="fas fa-exclamation-triangle" style="color: #f59e0b;"></i>
+                                Migração Completa (limpar destino)
+                            </label>
+                            <span style="font-size: 11px; color: #78350f; line-height: 1.4;">
+                                Apaga <strong>todos os dados</strong> do banco destino antes de importar.<br>
+                                Use ao migrar entre ambientes (ex: Render → AWS). Irreversível.
+                            </span>
+                        </div>
+                    </div>
+                </div>
+
                 <button class="btn btn-success" onclick="importarBackup()" style="width: 100%;" data-testid="button-importar-backup">
                     <i class="fas fa-upload"></i> Importar Backup
                 </button>

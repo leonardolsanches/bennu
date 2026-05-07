@@ -523,8 +523,10 @@ class Dashboard {
                     ✕
                </button>`;
 
-            const competenciaContabil = transacao.competencia_mes && transacao.competencia_ano 
-                ? `${String(transacao.competencia_mes).padStart(2, '0')}/${transacao.competencia_ano}`
+            const _cMes = transacao.competencia_mes_contabil || transacao.competencia_mes;
+            const _cAno = transacao.competencia_ano_contabil || transacao.competencia_ano;
+            const competenciaContabil = _cMes && _cAno
+                ? `${String(_cMes).padStart(2, '0')}/${_cAno}`
                 : '-';
 
             const competenciaGerencial = transacao.competencia_mes_gerencial && transacao.competencia_ano_gerencial 
@@ -566,12 +568,27 @@ class Dashboard {
 
         // Configurar event listeners dos checkboxes
         this.setupCheckboxListeners();
+
+        // Configurar menu de contexto (botão direito) em cada linha
+        tbody.querySelectorAll('tr[data-id]').forEach(row => {
+            row.addEventListener('contextmenu', (e) => {
+                e.preventDefault();
+                const transacaoId = row.dataset.id;
+                const descricao = row.querySelector('td:nth-child(5)')?.textContent?.trim() || '';
+                const fornecedor = row.querySelector('td:nth-child(9)')?.textContent?.trim() || '';
+                const valor = row.querySelector('td:nth-child(7)')?.textContent?.trim() || '';
+                const comp = row.querySelector('td:nth-child(3)')?.textContent?.trim() || '';
+                abrirContextMenuTransacao(e.clientX, e.clientY, transacaoId, { descricao, fornecedor, valor, comp });
+            });
+        });
     }
 
     updateFooterPagina(transacoes) {
-        const el = document.getElementById('footer-pagina-valor');
-        const qtdEl = document.getElementById('footer-pagina-qtd');
-        if (!el) return;
+        const elRec  = document.getElementById('footer-pagina-receitas');
+        const elDesp = document.getElementById('footer-pagina-despesas');
+        const elSald = document.getElementById('footer-pagina-saldo');
+        const elQtd  = document.getElementById('footer-pagina-qtd');
+        if (!elRec) return;
 
         const fmt = (v) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(v);
 
@@ -582,37 +599,46 @@ class Dashboard {
             else somaDespesas += v;
         });
         const saldo = somaReceitas - somaDespesas;
+        const n = (transacoes || []).length;
 
-        let parts = [];
-        if (somaReceitas > 0) parts.push(`<span style="color:#059669">${fmt(somaReceitas)}</span>`);
-        if (somaDespesas > 0) parts.push(`<span style="color:#dc2626">- ${fmt(somaDespesas)}</span>`);
-        if (somaReceitas > 0 && somaDespesas > 0) {
-            parts.push(`<span style="color:${saldo >= 0 ? '#059669' : '#dc2626'}">= ${fmt(saldo)}</span>`);
+        elRec.textContent  = somaReceitas > 0 ? `↑ ${fmt(somaReceitas)}` : '';
+        elDesp.textContent = somaDespesas > 0 ? `↓ ${fmt(somaDespesas)}` : '';
+
+        if (somaReceitas > 0 || somaDespesas > 0) {
+            elSald.textContent = fmt(Math.abs(saldo));
+            elSald.style.color = saldo >= 0 ? '#059669' : '#dc2626';
+        } else {
+            elSald.textContent = '-';
+            elSald.style.color = '#6b7280';
         }
-        el.innerHTML = parts.length > 0 ? parts.join(' ') : (transacoes && transacoes.length > 0 ? fmt(0) : '-');
-        if (qtdEl) qtdEl.textContent = `${(transacoes || []).length} reg. na página`;
+        if (elQtd) elQtd.textContent = n > 0 ? `${n} reg. na página` : '';
     }
 
     updateFooterPeriodo() {
-        const el = document.getElementById('footer-periodo-valor');
-        const qtdEl = document.getElementById('footer-periodo-qtd');
-        if (!el) return;
+        const elRec  = document.getElementById('footer-periodo-receitas');
+        const elDesp = document.getElementById('footer-periodo-despesas');
+        const elSald = document.getElementById('footer-periodo-saldo');
+        const elQtd  = document.getElementById('footer-periodo-qtd');
+        if (!elRec) return;
 
         const fmt = (v) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(v);
 
         const receitas = Number(this.data.receitas || 0);
         const despesas = Number(this.data.despesas || 0);
-        const saldo = receitas - despesas;
-        const total = (this.data.qtd_receitas || 0) + (this.data.qtd_despesas || 0);
+        const saldo    = receitas - despesas;
+        const total    = (this.data.qtd_receitas || 0) + (this.data.qtd_despesas || 0);
 
-        let parts = [];
-        if (receitas > 0) parts.push(`<span style="color:#059669">${fmt(receitas)}</span>`);
-        if (despesas > 0) parts.push(`<span style="color:#dc2626">- ${fmt(despesas)}</span>`);
-        if (receitas > 0 && despesas > 0) {
-            parts.push(`<span style="color:${saldo >= 0 ? '#059669' : '#dc2626'}">= ${fmt(saldo)}</span>`);
+        elRec.textContent  = receitas > 0 ? `↑ ${fmt(receitas)}` : '';
+        elDesp.textContent = despesas > 0 ? `↓ ${fmt(despesas)}` : '';
+
+        if (receitas > 0 || despesas > 0) {
+            elSald.textContent = fmt(Math.abs(saldo));
+            elSald.style.color = saldo >= 0 ? '#059669' : '#dc2626';
+        } else {
+            elSald.textContent = '-';
+            elSald.style.color = '#6b7280';
         }
-        el.innerHTML = parts.length > 0 ? parts.join(' ') : fmt(0);
-        if (qtdEl) qtdEl.textContent = `${total} reg. no período`;
+        if (elQtd) elQtd.textContent = `${total} reg. no período`;
     }
 
     setupGlobalEventListeners() {
@@ -1211,5 +1237,138 @@ if (!window.dashboard) {
             window.populateYearSelect('ano-filter', { includePlaceholder: false });
         }
         window.dashboard = new Dashboard();
+    }
+}
+
+// ─── MENU DE CONTEXTO E DUPLICAÇÃO ─────────────────────────────────────────
+
+let _ctxTransacaoId = null;
+let _ctxTransacaoInfo = {};
+
+function abrirContextMenuTransacao(x, y, transacaoId, info) {
+    fecharContextMenu();
+    _ctxTransacaoId = transacaoId;
+    _ctxTransacaoInfo = info;
+
+    const menu = document.getElementById('context-menu-transacao');
+    menu.style.display = 'block';
+    menu.style.left = x + 'px';
+    menu.style.top = y + 'px';
+
+    // Ajustar se sair da tela
+    const rect = menu.getBoundingClientRect();
+    if (rect.right > window.innerWidth) menu.style.left = (x - rect.width) + 'px';
+    if (rect.bottom > window.innerHeight) menu.style.top = (y - rect.height) + 'px';
+
+    document.getElementById('ctx-duplicar').onclick = () => {
+        fecharContextMenu();
+        abrirModalDuplicar(transacaoId, info);
+    };
+}
+
+function fecharContextMenu() {
+    const menu = document.getElementById('context-menu-transacao');
+    if (menu) menu.style.display = 'none';
+}
+
+document.addEventListener('click', fecharContextMenu);
+document.addEventListener('keydown', (e) => { if (e.key === 'Escape') { fecharContextMenu(); fecharModalDuplicar(); } });
+
+function _popularAnosDuplicar() {
+    const anoAtual = new Date().getFullYear();
+    ['dup-comp-ano-contabil', 'dup-comp-ano-gerencial'].forEach(id => {
+        const sel = document.getElementById(id);
+        if (!sel) return;
+        sel.innerHTML = '';
+        for (let a = anoAtual - 3; a <= anoAtual + 2; a++) {
+            const opt = document.createElement('option');
+            opt.value = a;
+            opt.textContent = a;
+            if (a === anoAtual) opt.selected = true;
+            sel.appendChild(opt);
+        }
+    });
+}
+
+function abrirModalDuplicar(transacaoId, info) {
+    _popularAnosDuplicar();
+
+    // Pré-preencher com data de hoje
+    const hoje = new Date().toISOString().split('T')[0];
+    document.getElementById('dup-data-lancamento').value = hoje;
+
+    // Pré-preencher mês/ano com o filtro atual da tela
+    const mesFiltro = document.getElementById('mes-filter')?.value || new Date().getMonth() + 1;
+    const anoFiltro = document.getElementById('ano-filter')?.value || new Date().getFullYear();
+    document.getElementById('dup-comp-mes-contabil').value = mesFiltro;
+    document.getElementById('dup-comp-ano-contabil').value = anoFiltro;
+    document.getElementById('dup-comp-mes-gerencial').value = mesFiltro;
+    document.getElementById('dup-comp-ano-gerencial').value = anoFiltro;
+
+    // Informação do registro original
+    const infoEl = document.getElementById('duplicar-info-original');
+    infoEl.innerHTML = `
+        <strong>Original:</strong> ${info.descricao || 'Sem descrição'}
+        ${info.fornecedor && info.fornecedor !== '-' ? ` &bull; <strong>Forn.:</strong> ${info.fornecedor}` : ''}
+        &bull; <strong>Valor:</strong> ${info.valor || '-'}
+        &bull; <strong>Comp.:</strong> ${info.comp || '-'}
+    `;
+
+    const modal = document.getElementById('modal-duplicar-transacao');
+    modal.style.display = 'flex';
+    _ctxTransacaoId = transacaoId;
+}
+
+function fecharModalDuplicar() {
+    const modal = document.getElementById('modal-duplicar-transacao');
+    if (modal) modal.style.display = 'none';
+}
+
+async function confirmarDuplicar() {
+    const id = _ctxTransacaoId;
+    if (!id) return;
+
+    const dataLancamento = document.getElementById('dup-data-lancamento').value;
+    const mesCont = parseInt(document.getElementById('dup-comp-mes-contabil').value);
+    const anoCont = parseInt(document.getElementById('dup-comp-ano-contabil').value);
+    const mesGer = parseInt(document.getElementById('dup-comp-mes-gerencial').value);
+    const anoGer = parseInt(document.getElementById('dup-comp-ano-gerencial').value);
+
+    if (!dataLancamento) {
+        alert('Informe a data de lançamento.');
+        return;
+    }
+
+    const btn = document.querySelector('#modal-duplicar-transacao .btn-primary');
+    const textoOriginal = btn.textContent;
+    btn.disabled = true;
+    btn.textContent = 'Duplicando...';
+
+    try {
+        const response = await fetch(`/api/transacoes/${id}/duplicar`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+            body: JSON.stringify({
+                data_lancamento: dataLancamento,
+                competencia_mes_contabil: mesCont,
+                competencia_ano_contabil: anoCont,
+                competencia_mes_gerencial: mesGer,
+                competencia_ano_gerencial: anoGer
+            })
+        });
+
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.detail || 'Erro ao duplicar');
+
+        fecharModalDuplicar();
+        alert(`✅ ${data.message}`);
+        if (window.dashboard) window.dashboard.loadTransactionsData();
+
+    } catch (err) {
+        alert('Erro ao duplicar: ' + err.message);
+    } finally {
+        btn.disabled = false;
+        btn.textContent = textoOriginal;
     }
 }

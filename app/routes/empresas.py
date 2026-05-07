@@ -47,7 +47,7 @@ async def get_empresas(
     """
     try:
         from app.models.auxiliares import Imposto
-        empresas = db.query(Empresa).filter(Empresa.ativo == True).all()
+        empresas = db.query(Empresa).filter(Empresa.ativo == True).order_by(Empresa.nome_fantasia).all()
         
         # Formato compatível com frontend React
         result = []
